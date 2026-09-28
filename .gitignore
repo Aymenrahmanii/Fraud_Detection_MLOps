@@ -11,3 +11,4 @@ pytest-junit.xml
 coverage.xml
 .coverage
 gitleaks-report.json
+.agent3_last_assessment.json
