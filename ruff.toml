@@ -1,0 +1,26 @@
+# Root ruff config. Agent 3's release gate (agent3_security_quality/core/
+# scanners/quality_scanner.py) explicitly selects F821, F811, E9, S when it
+# runs `ruff check`; these per-file-ignores tune that selection rather than
+# disabling it wholesale, and are documented here so the reasoning doesn't
+# live only in someone's memory.
+
+[lint.per-file-ignores]
+# `assert` in test files is idiomatic pytest usage, not the "asserts get
+# stripped under python -O" risk bandit's S101 exists to catch in
+# production code paths.
+"**/tests/*.py" = ["S101"]
+
+# These modules intentionally shell out to fixed, hardcoded command lists
+# (never shell=True, never user-controlled input, never string-built
+# commands) to invoke known dev/scanner tools -- exactly the reviewed,
+# accepted case S603 (subprocess call review) and S607 (partial executable
+# path) exist to flag for a human to sign off on, not a defect to silence
+# line-by-line.
+"agent3_security_quality/core/scanners/*.py" = ["S603", "S607"]
+"agent3_security_quality/core/assess.py" = ["S603", "S607"]
+
+# Same reasoning: fixed [sys.executable, "-c", <literal code string>]
+# argument list, no shell, no external/user-controlled input -- used to
+# run a prediction in a clean subprocess so it doesn't share sys.modules
+# with the rest of the (mocked) API test suite.
+"API/tests/test_real_model_schema.py" = ["S603"]

@@ -1,0 +1,16 @@
+# Dependencies for Agent 3 (Security & Quality) itself, kept separate from
+# the main app's requirements.txt since this tooling ships independently
+# of the fraud-detection API.
+pydantic>=2.0
+defusedxml>=0.7.1
+pytest>=8.0
+pytest-cov>=5.0
+ruff>=0.16
+pip-audit>=2.10
+httpx>=0.27  # required by fastapi.testclient.TestClient, used in API/tests
+mcp>=2.0  # mcp_server.py -- MCPServer/tool() API is mcp 2.x only, not 1.x
+groq>=1.7  # optional LLM rationale layer (core/rationale.py); no-op if GROQ_API_KEY unset
+python-dotenv>=1.0  # loads GROQ_API_KEY etc. from a local .env; no-op in CI
+
+# gitleaks and trivy are Go binaries, not pip packages -- installed
+# separately in CI (see .github/workflows/agent3-release-gate.yml).
