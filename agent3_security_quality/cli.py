@@ -8,7 +8,11 @@ import argparse
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from agent3_security_quality.core.assess import run_assessment
+
+load_dotenv()  # picks up GROQ_API_KEY etc. from a local .env; no-op in CI
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,6 +40,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="treat a missing/failed scanner as BLOCK instead of a warning (use in CI)",
     )
+    assess_parser.add_argument(
+        "--rationale",
+        action="store_true",
+        help="add an LLM-written plain-English summary (requires GROQ_API_KEY; "
+        "silently omitted if unset or the call fails)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -50,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
             requirements_path=args.requirements,
             image_ref=args.image,
             strict=args.strict,
+            with_rationale=args.rationale,
             **kwargs,
         )
         Path(args.out).write_text(assessment.model_dump_json(indent=2))
