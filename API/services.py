@@ -1,26 +1,27 @@
+import os
+
 import mlflow.pyfunc
-import pandas as pd
 import numpy as np
-import mlflow
-from mlflow import MlflowClient
+import pandas as pd
 
-# mlflow.set_tracking_uri('file:./Notebooks/mlruns')
-mlflow.set_tracking_uri('file:./API/mlruns')
+# Loaded directly from its artifact directory rather than through MLflow's
+# local Model Registry (models:/FraudDetectionPipeline@champion). The
+# registry's own metadata bakes an ABSOLUTE artifact path in at
+# registration time -- every registered version here points at
+# c:/Users/Asus/Downloads/Fraud_MLOps_Project/... on the original
+# training machine, which cannot resolve on any other machine, in CI, or
+# in a container. That isn't a one-off typo: it's inherent to how
+# MLflow's file-based store works, so re-pointing it at this machine's
+# path would only break again on the next machine. The actual artifact
+# files are checked into the repo at a stable, portable relative path,
+# so we load from there directly instead.
+MODEL_ARTIFACT_PATH = os.environ.get(
+    "MODEL_ARTIFACT_PATH",
+    "API/mlruns/369953768913727304/models/m-f8ae82f65eaf4a12b5d02dce9939bf52/artifacts",
+)
 
-client = MlflowClient()
+model = mlflow.pyfunc.load_model(MODEL_ARTIFACT_PATH)
 
-# Set model version alias
-model_name = "FraudDetectionPipeline"
-model_version_alias = "champion"
-
-# Get information about the model
-model_info = client.get_model_version_by_alias(model_name, model_version_alias)
-model_tags = model_info.tags
-print(model_tags)
-
-# Get the model version using a model URI
-MLFLOW_MODEL_URI = f"models:/{model_name}@{model_version_alias}"
-model = mlflow.pyfunc.load_model(MLFLOW_MODEL_URI)
 
 def predict_fraud(data: dict):
     df = pd.DataFrame([data])
