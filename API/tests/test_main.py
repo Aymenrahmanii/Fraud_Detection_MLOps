@@ -1,10 +1,13 @@
 """API contract tests.
 
 These exercise the FastAPI layer (routing, request validation, response
-shape) against a mocked model (see conftest.py) -- they are not a
-substitute for actually verifying the real model loads and predicts
-correctly, which requires the MLflow registry portability bug to be
-fixed first.
+shape) against a mocked model (see conftest.py) -- fast and deterministic,
+but they mock past MLflow's own schema enforcement entirely, so they
+cannot catch a request-schema/model-schema type mismatch. See
+test_real_model_schema.py for a regression test that runs against the
+real, unmocked model specifically to catch that class of bug -- it's
+exactly how the paymentMethodAgeDays int-vs-double bug was found (by
+running the actual server and sending it a non-0/1 value).
 """
 
 from fastapi.testclient import TestClient
