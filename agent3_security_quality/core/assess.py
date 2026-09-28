@@ -44,8 +44,8 @@ def _git_commit() -> str:
 
 def run_assessment(
     *,
-    test_target: str = "agent3_security_quality/tests",
-    cov_source: str = "agent3_security_quality",
+    test_targets: tuple[str, ...] = ("agent3_security_quality/tests", "API/tests"),
+    cov_sources: tuple[str, ...] = ("agent3_security_quality", "API"),
     quality_targets: tuple[str, ...] = ("API", "agent3_security_quality"),
     requirements_path: str = "requirements.txt",
     image_ref: str = "",
@@ -63,7 +63,7 @@ def run_assessment(
 
     tests = _try(
         "tests",
-        lambda: test_runner.run(test_target, cov_source=cov_source),
+        lambda: test_runner.run(*test_targets, cov_sources=cov_sources),
         EMPTY_TESTS,
     )
     quality = _try("quality", lambda: quality_scanner.run(*quality_targets), EMPTY_QUALITY)

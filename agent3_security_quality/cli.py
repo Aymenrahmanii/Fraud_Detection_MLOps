@@ -18,8 +18,18 @@ def main(argv: list[str] | None = None) -> int:
     assess_parser = subparsers.add_parser("assess", help="run all scanners and produce a release assessment")
     assess_parser.add_argument("--image", default="", help="container image ref for Trivy (skipped if omitted)")
     assess_parser.add_argument("--requirements", default="requirements.txt")
-    assess_parser.add_argument("--test-target", default="agent3_security_quality/tests")
-    assess_parser.add_argument("--cov-source", default="agent3_security_quality")
+    assess_parser.add_argument(
+        "--test-target",
+        action="append",
+        dest="test_targets",
+        help="pytest target; repeatable (default: agent3_security_quality/tests and API/tests)",
+    )
+    assess_parser.add_argument(
+        "--cov-source",
+        action="append",
+        dest="cov_sources",
+        help="coverage source; repeatable (default: agent3_security_quality and API)",
+    )
     assess_parser.add_argument("--out", default="release_assessment.json")
     assess_parser.add_argument(
         "--strict",
@@ -30,12 +40,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "assess":
+        kwargs = {}
+        if args.test_targets:
+            kwargs["test_targets"] = tuple(args.test_targets)
+        if args.cov_sources:
+            kwargs["cov_sources"] = tuple(args.cov_sources)
+
         assessment = run_assessment(
-            test_target=args.test_target,
-            cov_source=args.cov_source,
             requirements_path=args.requirements,
             image_ref=args.image,
             strict=args.strict,
+            **kwargs,
         )
         Path(args.out).write_text(assessment.model_dump_json(indent=2))
         print(assessment.model_dump_json(indent=2))

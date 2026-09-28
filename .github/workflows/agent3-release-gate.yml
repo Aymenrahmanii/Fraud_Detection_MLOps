@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install app dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
       - name: Install Agent 3 tooling
         run: pip install --no-cache-dir -r agent3_security_quality/requirements.txt
 

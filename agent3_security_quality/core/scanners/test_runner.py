@@ -43,23 +43,25 @@ def _parse_coverage(coverage_path: Path) -> float:
 
 
 def run(
-    target: str,
-    *,
-    cov_source: str | None = None,
+    *targets: str,
+    cov_sources: tuple[str, ...] = (),
     junit_path: str = "pytest-junit.xml",
     coverage_path: str = "coverage.xml",
 ) -> TestResults:
-    """Run pytest against `target`, returning structured TestResults.
+    """Run pytest against `targets`, returning structured TestResults.
 
-    `cov_source` enables coverage measurement for that package/path; when
-    omitted, coverage_pct is reported as 0.0 rather than guessed.
+    `cov_sources` enables coverage measurement for those packages/paths
+    (one --cov flag per entry); when empty, coverage_pct is reported as
+    0.0 rather than guessed.
     """
     if shutil.which("pytest") is None:
         raise ScannerUnavailableError("pytest is not installed")
 
-    cmd = ["pytest", target, "-q", f"--junitxml={junit_path}"]
-    if cov_source:
-        cmd += [f"--cov={cov_source}", f"--cov-report=xml:{coverage_path}"]
+    cmd = ["pytest", *targets, "-q", f"--junitxml={junit_path}"]
+    for source in cov_sources:
+        cmd.append(f"--cov={source}")
+    if cov_sources:
+        cmd.append(f"--cov-report=xml:{coverage_path}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -71,7 +73,7 @@ def run(
         )
 
     total, passed, failed, skipped = _parse_junit(junit_file)
-    coverage_pct = _parse_coverage(Path(coverage_path)) if cov_source else 0.0
+    coverage_pct = _parse_coverage(Path(coverage_path)) if cov_sources else 0.0
 
     return TestResults(
         total=total,
