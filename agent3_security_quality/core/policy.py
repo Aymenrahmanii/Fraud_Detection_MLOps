@@ -16,6 +16,19 @@ from agent3_security_quality.core.schemas import (
 MIN_COVERAGE_PCT = 70.0
 
 
+def merge_security(parts: list[SecurityResults]) -> SecurityResults:
+    """Combine the dependency/secrets/container scanners' partial findings
+    into the single SecurityResults the policy decides against."""
+    return SecurityResults(
+        critical=sum(p.critical for p in parts),
+        high=sum(p.high for p in parts),
+        medium=sum(p.medium for p in parts),
+        secrets_found=sum(p.secrets_found for p in parts),
+        highest_cvss=max((p.highest_cvss for p in parts), default=0.0),
+        policy_exception_required=any(p.policy_exception_required for p in parts),
+    )
+
+
 def decide(
     tests: TestResults,
     quality: QualityResults,
