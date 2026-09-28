@@ -1,22 +1,24 @@
 """Fixtures for the API test suite.
 
-API/services.py loads an MLflow model at *import time* (a design smell in
-its own right -- import-time side effects make a module impossible to
-test without a working model registry, and crash the whole process on
-startup if the registry is unavailable, instead of failing one request).
+API/services.py loads its MLflow model at *import time*. As of the fix
+in this same change, it loads directly from the artifact's checked-in
+relative path rather than through the local MLflow Model Registry, so it
+actually works on any machine now (the registry itself baked an absolute
+path from the original training machine and could not resolve
+elsewhere -- see the comment in services.py for the full story).
 
-Separately, and more seriously: the committed local MLflow registry under
-API/mlruns is not portable. Its "champion"-aliased model version's
-storage_location is a hardcoded absolute path from the original author's
-own machine (file:///c:/Users/Asus/Downloads/...), so mlflow.pyfunc.
-load_model() fails on any other machine, including this one. That is a
-real, separate bug -- not something this stub silently fixes.
+Even though loading the real model now works, we still stub `mlflow`
+here before API.main (and therefore API.services) is imported, for
+reasons independent of that bug:
+  - Speed/determinism: the real model requires exact pinned library
+    versions (scikit-learn==1.6.1, etc.) to unpickle without warnings,
+    which the API test suite shouldn't have to depend on.
+  - The import-time loading itself is still a design smell (any load
+    failure crashes the whole process on startup rather than failing
+    one request) -- unrelated to this fix, not addressed here.
 
-Until both are addressed, we replace `mlflow` in sys.modules with a
-stub *before* API.main (and therefore API.services) is ever imported, so
-the API test suite exercises the FastAPI layer without depending on the
-broken registry. Tests that care about a specific prediction value
-monkeypatch `API.services.model.predict` directly.
+Tests that care about a specific prediction value monkeypatch
+`API.services.model.predict` directly.
 """
 
 import sys
@@ -31,18 +33,10 @@ def _install_mlflow_stub() -> None:
         # late to stub, and it would be misleading to pretend otherwise.
         return
 
-    fake_model_info = MagicMock()
-    fake_model_info.tags = {}
-
-    fake_client = MagicMock()
-    fake_client.get_model_version_by_alias.return_value = fake_model_info
-
     fake_loaded_model = MagicMock()
     fake_loaded_model.predict.return_value = np.array([0])
 
     mlflow_module = MagicMock(name="mlflow_stub")
-    mlflow_module.set_tracking_uri = MagicMock()
-    mlflow_module.MlflowClient = MagicMock(return_value=fake_client)
     mlflow_module.pyfunc.load_model = MagicMock(return_value=fake_loaded_model)
 
     sys.modules["mlflow"] = mlflow_module
