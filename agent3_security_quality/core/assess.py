@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 from agent3_security_quality.core.errors import ScannerError
 from agent3_security_quality.core.policy import decide, merge_security
+from agent3_security_quality.core.rationale import generate_rationale
 from agent3_security_quality.core.scanners import (
     container_scanner,
     dependency_scanner,
@@ -50,6 +51,7 @@ def run_assessment(
     requirements_path: str = "requirements.txt",
     image_ref: str = "",
     strict: bool = False,
+    with_rationale: bool = False,
 ) -> ReleaseAssessment:
     warnings: list[str] = []
     unavailable: list[str] = []
@@ -89,7 +91,7 @@ def run_assessment(
         else:
             warnings.extend(f"scanner skipped (dev mode): {u}" for u in unavailable)
 
-    return ReleaseAssessment(
+    assessment = ReleaseAssessment(
         assessment_id=f"REL-{datetime.now(UTC):%Y%m%d%H%M%S}",
         commit=_git_commit(),
         artifact=ArtifactRef(image=image_ref),
@@ -100,3 +102,11 @@ def run_assessment(
         blocking_reasons=blocking_reasons,
         warnings=warnings,
     )
+
+    if with_rationale:
+        # Runs strictly after the decision above is final; generate_rationale
+        # never raises (see its docstring), so this can't turn a completed
+        # assessment into a failure.
+        assessment.rationale = generate_rationale(assessment)
+
+    return assessment

@@ -53,3 +53,8 @@ class ReleaseAssessment(BaseModel):
     blocking_reasons: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     policy_version: str = "release-policy-1.0"
+    # Optional, additive field -- an LLM-written plain-English summary of
+    # the scan results (see core/rationale.py). Never influences decision/
+    # blocking_reasons/warnings, which are all set before this runs.
+    # None when rationale generation is disabled, unconfigured, or fails.
+    rationale: str | None = None

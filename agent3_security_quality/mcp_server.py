@@ -23,9 +23,12 @@ that raised for this tool specifically.
 import json
 from pathlib import Path
 
+from dotenv import load_dotenv
 from mcp.server.mcpserver import MCPServer
 
 from agent3_security_quality.core.assess import run_assessment
+
+load_dotenv()  # picks up GROQ_API_KEY for the optional rationale param
 
 server = MCPServer(
     "agent3-security-quality",
@@ -35,7 +38,8 @@ server = MCPServer(
         "(gitleaks), and container vulnerabilities (Trivy, only when an "
         "image ref is given). Returns a RELEASE_ASSESSMENT payload with a "
         "BLOCK / ALLOW_WITH_WARNING / ALLOW decision. Scan results are "
-        "authoritative; this server does no LLM reasoning of its own."
+        "authoritative -- the optional rationale text is LLM-generated "
+        "afterward, purely descriptive, and never changes the decision."
     ),
 )
 
@@ -43,7 +47,7 @@ _CACHE_PATH = Path(".agent3_last_assessment.json")
 
 
 @server.tool()
-def run_release_assessment(image: str = "", strict: bool = False) -> dict:
+def run_release_assessment(image: str = "", strict: bool = False, rationale: bool = False) -> dict:
     """Run the full release-gate scan now and return the result.
 
     Slow (often 1-3 minutes) because of network-bound dependency
@@ -55,8 +59,10 @@ def run_release_assessment(image: str = "", strict: bool = False) -> dict:
         strict: treat a missing/failed scanner as BLOCK instead of a
             warning (matches CI behavior; local/dev runs normally leave
             this False).
+        rationale: add an LLM-written plain-English summary of the
+            results (needs GROQ_API_KEY; silently omitted otherwise).
     """
-    assessment = run_assessment(image_ref=image, strict=strict)
+    assessment = run_assessment(image_ref=image, strict=strict, with_rationale=rationale)
     payload = assessment.model_dump()
     _CACHE_PATH.write_text(json.dumps(payload, indent=2))
     return payload

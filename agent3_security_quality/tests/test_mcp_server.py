@@ -64,9 +64,9 @@ def test_run_release_assessment_forwards_arguments(tmp_path, monkeypatch):
     monkeypatch.setattr(mcp_server, "_CACHE_PATH", tmp_path / "cache.json")
     monkeypatch.setattr(mcp_server, "run_assessment", fake_run_assessment)
 
-    mcp_server.run_release_assessment(image="fraud-api:ci", strict=True)
+    mcp_server.run_release_assessment(image="fraud-api:ci", strict=True, rationale=True)
 
-    assert captured == {"image_ref": "fraud-api:ci", "strict": True}
+    assert captured == {"image_ref": "fraud-api:ci", "strict": True, "with_rationale": True}
 
 
 def test_get_latest_assessment_without_a_prior_run_reports_an_error(tmp_path, monkeypatch):
