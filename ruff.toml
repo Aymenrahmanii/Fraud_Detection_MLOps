@@ -18,3 +18,9 @@
 # line-by-line.
 "agent3_security_quality/core/scanners/*.py" = ["S603", "S607"]
 "agent3_security_quality/core/assess.py" = ["S603", "S607"]
+
+# Same reasoning: fixed [sys.executable, "-c", <literal code string>]
+# argument list, no shell, no external/user-controlled input -- used to
+# run a prediction in a clean subprocess so it doesn't share sys.modules
+# with the rest of the (mocked) API test suite.
+"API/tests/test_real_model_schema.py" = ["S603"]
