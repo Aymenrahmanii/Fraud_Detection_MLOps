@@ -1,0 +1,12 @@
+{
+  "replicas": 2,
+  "ready_replicas": 2,
+  "cpu_avg_pct": 61.2,
+  "memory_avg_pct": 68.0,
+  "latency_p95_ms": 490,
+  "rps": 640,
+  "error_rate_pct": 0.5,
+  "queue_depth": 20,
+  "memory_usage_mib": 174,
+  "memory_limit_mib": 256
+}

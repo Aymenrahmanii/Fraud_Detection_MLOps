@@ -1,0 +1,366 @@
+COMMANDES POUR EXÉCUTER LE PROJET DE BASE ET TESTER L’AGENT 5
+
+IMPORTANT :
+
+- Utiliser CMD Windows.
+- Exécuter les commandes une par une.
+- Écrire chaque commande sur une seule ligne.
+
+==================================================
+ÉTAPE 1 — ACCÉDER AU PROJET
+==================================================
+
+cd "C:\Users\User\Desktop\PI-5DS\Agent 5 – Real Metrics\Fraud_DetectionMLOps\repo"
+
+Vérifier le dossier actuel :
+
+cd
+
+==================================================
+ÉTAPE 2 — VÉRIFIER DOCKER
+==================================================
+
+Démarrer Docker Desktop, puis exécuter :
+
+docker info
+
+==================================================
+ÉTAPE 3 — CONSTRUIRE L’IMAGE DU PROJET DE BASE
+==================================================
+
+docker build -t fraud-api:base .
+
+Vérifier que l’image existe :
+
+docker images fraud-api
+
+==================================================
+ÉTAPE 4 — SUPPRIMER L’ANCIEN CONTENEUR
+==================================================
+
+docker rm -f fraud-api-base
+
+Si Docker indique que le conteneur n’existe pas, continuer normalement.
+
+==================================================
+ÉTAPE 5 — LANCER LE PROJET DE BASE
+==================================================
+
+docker run -d --name fraud-api-base -p 8000:8000 fraud-api:base
+
+==================================================
+ÉTAPE 6 — VÉRIFIER LE CONTENEUR
+==================================================
+
+docker ps --filter name=fraud-api-base
+
+Afficher les logs :
+
+docker logs fraud-api-base
+
+Résultat attendu dans les logs :
+
+Application startup complete
+Uvicorn running on http://0.0.0.0:8000
+
+==================================================
+ÉTAPE 7 — TESTER L’API
+==================================================
+
+curl http://localhost:8000/health
+
+Résultat attendu :
+
+{"status":"ok"}
+
+Swagger :
+
+http://localhost:8000/docs
+
+Métriques FastAPI :
+
+http://localhost:8000/metrics
+
+==================================================
+ÉTAPE 8 — TESTER UNE PRÉDICTION DANS SWAGGER
+==================================================
+
+Ouvrir :
+
+http://localhost:8000/docs
+
+Sélectionner :
+
+POST /predict
+
+Cliquer sur :
+
+Try it out
+
+Utiliser ce body :
+
+{
+  "Category": "shopping",
+  "paymentMethod": "paypal",
+  "isWeekend": 0.0,
+  "numItems": 4,
+  "localTime": 4.742303,
+  "paymentMethodAgeDays": 700.0,
+  "accountAgeDays": 900
+}
+
+Cliquer sur :
+
+Execute
+
+Résultat attendu :
+
+{
+  "prediction": 0
+}
+
+==================================================
+ÉTAPE 9 — SUPPRIMER L’ANCIEN PROMETHEUS
+==================================================
+
+docker rm -f agent5-prometheus
+
+Si Docker indique que le conteneur n’existe pas, continuer normalement.
+
+==================================================
+ÉTAPE 10 — LANCER PROMETHEUS
+==================================================
+
+docker run -d --name agent5-prometheus -p 9091:9090 -v "%cd%\agent5_resource_optimization\examples\prometheus-local.yml:/etc/prometheus/prometheus.yml:ro" prom/prometheus:latest
+
+==================================================
+ÉTAPE 11 — VÉRIFIER PROMETHEUS
+==================================================
+
+curl http://localhost:9091/-/ready
+
+Résultat attendu :
+
+Prometheus Server is Ready.
+
+Ouvrir la page des targets :
+
+http://localhost:9091/targets
+
+La cible suivante doit être UP :
+
+fraud-api-local
+
+==================================================
+ÉTAPE 12 — CRÉER L’ENVIRONNEMENT VIRTUEL
+==================================================
+
+Cette étape est nécessaire uniquement si le dossier .venv-agent5 n’existe pas.
+
+python -m venv .venv-agent5
+
+==================================================
+ÉTAPE 13 — ACTIVER L’ENVIRONNEMENT VIRTUEL
+==================================================
+
+.venv-agent5\Scripts\activate
+
+Le terminal doit commencer par :
+
+(.venv-agent5)
+
+==================================================
+ÉTAPE 14 — INSTALLER LES DÉPENDANCES
+==================================================
+
+python -m pip install -r agent5_resource_optimization\requirements.txt
+
+==================================================
+ÉTAPE 15 — LANCER LES TESTS AUTOMATIQUES
+==================================================
+
+python -m pytest -p no:cacheprovider agent5_resource_optimization\tests
+
+Résultat attendu :
+
+12 passed
+
+==================================================
+ÉTAPE 16 — GÉNÉRER DU TRAFIC RÉEL
+==================================================
+
+Ouvrir Swagger :
+
+http://localhost:8000/docs
+
+Exécuter POST /predict environ 10 à 20 fois.
+
+Utiliser le body suivant :
+
+{
+  "Category": "shopping",
+  "paymentMethod": "paypal",
+  "isWeekend": 0.0,
+  "numItems": 4,
+  "localTime": 4.742303,
+  "paymentMethodAgeDays": 700.0,
+  "accountAgeDays": 900
+}
+
+Attendre ensuite environ 15 secondes pour permettre à Prometheus de collecter les nouvelles métriques.
+
+==================================================
+ÉTAPE 17 — VÉRIFIER LES STATISTIQUES DOCKER
+==================================================
+
+docker stats --no-stream fraud-api-base
+
+Cette commande affiche notamment :
+
+CPU %
+MEM USAGE / LIMIT
+MEM %
+NET I/O
+PIDS
+
+==================================================
+ÉTAPE 18 — LANCER L’AGENT 5 AVEC LES VRAIES MÉTRIQUES
+==================================================
+
+python -m agent5_resource_optimization.cli --docker-container fraud-api-base --prometheus-url http://localhost:9091 --window-minutes 5 --out resource_recommendation.json
+
+Le fichier sera automatiquement enregistré dans :
+
+agent5_resource_optimization\resource_recommendation.json
+
+Le terminal doit afficher une ligne similaire à :
+
+Recommendation saved to: ...\agent5_resource_optimization\resource_recommendation.json
+
+==================================================
+ÉTAPE 19 — AFFICHER LA RECOMMANDATION COMPLÈTE
+==================================================
+
+type agent5_resource_optimization\resource_recommendation.json
+
+==================================================
+ÉTAPE 20 — AFFICHER LES MÉTRIQUES COLLECTÉES
+==================================================
+
+python -c "import json; r=json.load(open('agent5_resource_optimization/resource_recommendation.json')); print(json.dumps(r['payload']['current'], indent=2))"
+
+==================================================
+ÉTAPE 21 — AFFICHER UNIQUEMENT LA DÉCISION
+==================================================
+
+python -c "import json; r=json.load(open('agent5_resource_optimization/resource_recommendation.json')); print(json.dumps(r['payload']['recommendation'], indent=2))"
+
+==================================================
+ÉTAPE 22 — AFFICHER LES RAISONS
+==================================================
+
+python -c "import json; r=json.load(open('agent5_resource_optimization/resource_recommendation.json')); print(json.dumps(r['payload']['reasons'], indent=2))"
+
+==================================================
+ÉTAPE 23 — TESTER UN SCÉNARIO SIMULÉ DE FORTE CHARGE
+==================================================
+
+python -m agent5_resource_optimization.cli --metrics-file agent5_resource_optimization\examples\high_load.json --out high_load_recommendation.json
+
+Le résultat sera enregistré dans :
+
+agent5_resource_optimization\high_load_recommendation.json
+
+==================================================
+ÉTAPE 24 — AFFICHER LA DÉCISION SIMULÉE
+==================================================
+
+python -c "import json; r=json.load(open('agent5_resource_optimization/high_load_recommendation.json')); print(json.dumps(r['payload']['recommendation'], indent=2))"
+
+Résultat attendu :
+
+{
+  "action": "SCALE_REPLICAS",
+  "from": 2,
+  "to": 3
+}
+
+==================================================
+ÉTAPE 25 — COMPARER LA DÉCISION RÉELLE ET LA DÉCISION SIMULÉE
+==================================================
+
+fc agent5_resource_optimization\resource_recommendation.json agent5_resource_optimization\high_load_recommendation.json
+
+==================================================
+ÉTAPE 26 — QUITTER L’ENVIRONNEMENT VIRTUEL
+==================================================
+
+deactivate
+
+==================================================
+ÉTAPE 27 — ARRÊTER PROMETHEUS
+==================================================
+
+docker stop agent5-prometheus
+
+==================================================
+ÉTAPE 28 — ARRÊTER L’API
+==================================================
+
+docker stop fraud-api-base
+
+==================================================
+RÉSUMÉ DES URLS
+==================================================
+
+API Health :
+
+http://localhost:8000/health
+
+Swagger :
+
+http://localhost:8000/docs
+
+Métriques FastAPI :
+
+http://localhost:8000/metrics
+
+Prometheus :
+
+http://localhost:9091
+
+Prometheus Targets :
+
+http://localhost:9091/targets
+
+==================================================
+RÉSUMÉ DU FLUX
+==================================================
+
+FastAPI
+    ↓
+/metrics
+    ↓
+Prometheus
+    ↓
+PrometheusCollector
+    ↓
+Latence p95 + RPS + taux d’erreur
+
+Docker
+    ↓
+DockerCollector
+    ↓
+CPU + mémoire
+
+PrometheusCollector + DockerCollector
+    ↓
+Agrégation
+    ↓
+Agent 5
+    ↓
+Analyse des seuils
+    ↓
+NO_CHANGE / SCALE_REPLICAS / INCREASE_MEMORY
+    ↓
+agent5_resource_optimization\resource_recommendation.json

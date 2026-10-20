@@ -1,0 +1,75 @@
+{
+  "message_id": "MSG-F98195721094",
+  "schema_version": "1.0",
+  "correlation_id": "INC-BB0E8FEA34ED",
+  "causation_id": null,
+  "trace_id": "TRACE-02F72C942B91",
+  "source": "resource-optimization-agent",
+  "target": "orchestrator",
+  "topic": "resource.recommendation.created",
+  "message_type": "RESOURCE_RECOMMENDATION",
+  "priority": "P3",
+  "severity": "LOW",
+  "timestamp": "2026-10-08T08:31:16.667354Z",
+  "environment": "development",
+  "service": {
+    "service_id": "fraud-api",
+    "namespace": "default",
+    "version": "unknown"
+  },
+  "evidence_refs": [
+    "docker:fraud-api-base"
+  ],
+  "confidence": 0.9,
+  "requires_ack": true,
+  "idempotency_key": "INC-BB0E8FEA34ED:RESOURCE_RECOMMENDATION:v1",
+  "payload": {
+    "recommendation_id": "RES-4255E3A01375",
+    "window": "15m",
+    "current": {
+      "replicas": 1,
+      "ready_replicas": 1,
+      "cpu_avg_pct": 0.23,
+      "memory_avg_pct": 46.98,
+      "latency_p95_ms": 250.0,
+      "rps": 10.0,
+      "error_rate_pct": null,
+      "queue_depth": null,
+      "cpu_usage_millicores": null,
+      "cpu_request_millicores": null,
+      "cpu_limit_millicores": null,
+      "memory_usage_mib": 240.5,
+      "memory_request_mib": null,
+      "memory_limit_mib": 512.0
+    },
+    "forecast": {
+      "horizon": "10m",
+      "rps_expected": 10.0,
+      "confidence_interval": []
+    },
+    "recommendation": {
+      "action": "NO_CHANGE",
+      "from": 1,
+      "to": 1,
+      "min": 1,
+      "max_policy": 8,
+      "memory_limit_from_mib": null,
+      "memory_limit_to_mib": null
+    },
+    "expected_effect": {
+      "latency_reduction_pct": 0.0,
+      "cpu_target_pct": 0.23,
+      "memory_target_pct": 46.98
+    },
+    "reasons": [
+      "No policy threshold justifies a safe resource change"
+    ],
+    "constraints": [
+      "replicas>=1",
+      "replicas<=8",
+      "reliability_before_efficiency",
+      "orchestrator_approval_required"
+    ],
+    "rollback_condition": "No change was proposed; continue monitoring the next observation window"
+  }
+}
