@@ -1,0 +1,713 @@
+RÉSUMÉ COMPLET DU FONCTIONNEMENT DE L’AGENT 5
+
+1. MISSION DE L’AGENT 5
+
+L’Agent 5 est responsable de l’optimisation des ressources.
+
+Son travail actuel consiste à :
+
+- collecter les métriques techniques du service ;
+- combiner les métriques provenant de plusieurs sources ;
+- vérifier et valider les données ;
+- comparer les métriques avec des seuils définis ;
+- choisir une décision ;
+- préparer une recommandation structurée ;
+- enregistrer cette recommandation dans un fichier JSON.
+
+L’Agent 5 ne modifie rien directement.
+
+Il ne réalise pas les opérations suivantes :
+
+- il ne change pas le nombre de replicas ;
+- il ne change pas la limite mémoire ;
+- il ne modifie pas Docker ;
+- il ne modifie pas Kubernetes ;
+- il n’appelle pas l’Agent 4 ;
+- il n’envoie pas encore la recommandation à l’orchestrateur.
+
+Son fonctionnement actuel est donc :
+
+Observer → Collecter → Combiner → Analyser → Recommander → Enregistrer
+
+==================================================
+
+2. ARCHITECTURE GÉNÉRALE
+
+En environnement Docker local :
+
+FastAPI /metrics
+        ↓
+Prometheus
+        ↓
+PrometheusCollector
+        │
+        ├───────────────→ Agrégation
+        │                      ↓
+Docker stats                   ResourceMetrics
+        ↓                      ↓
+DockerCollector ────────→ Agent 5
+                               ↓
+                            Analyse
+                               ↓
+                         Recommandation
+                               ↓
+                         Fichier JSON
+
+En environnement Kubernetes :
+
+FastAPI /metrics
+        ↓
+Prometheus
+        ↓
+PrometheusCollector
+        │
+        ├───────────────→ Agrégation
+        │                      ↓
+Kubernetes API                ResourceMetrics
+        ↓                      ↓
+KubernetesCollector ───→ Agent 5
+                               ↓
+                            Analyse
+                               ↓
+                         Recommandation
+                               ↓
+                         Fichier JSON
+
+Une exécution utilise :
+
+DockerCollector + PrometheusCollector
+
+OU
+
+KubernetesCollector + PrometheusCollector
+
+DockerCollector et KubernetesCollector ne sont pas utilisés ensemble dans une même exécution.
+
+==================================================
+
+3. DOCKER COLLECTOR
+
+Le DockerCollector se trouve dans :
+
+agent5_resource_optimization/collectors/docker.py
+
+Il est utilisé pour les tests locaux avec Docker Desktop.
+
+Lorsque l’Agent 5 est lancé avec :
+
+--docker-container fraud-api-base
+
+le DockerCollector exécute automatiquement une commande similaire à :
+
+docker stats --no-stream fraud-api-base
+
+Il collecte :
+
+- le pourcentage CPU ;
+- le pourcentage mémoire ;
+- la mémoire réellement utilisée ;
+- la limite mémoire Docker.
+
+Comme il s’agit d’un seul conteneur local, il fixe également :
+
+replicas = 1
+ready_replicas = 1
+
+Le DockerCollector prend un instantané au moment de l’exécution.
+
+Il ne surveille pas le conteneur en permanence.
+
+==================================================
+
+4. PROMETHEUS COLLECTOR
+
+Le PrometheusCollector se trouve dans :
+
+agent5_resource_optimization/collectors/prometheus.py
+
+FastAPI expose ses métriques sur :
+
+http://localhost:8000/metrics
+
+Prometheus collecte régulièrement ces métriques.
+
+Le PrometheusCollector interroge ensuite l’API HTTP de Prometheus.
+
+Il collecte :
+
+- la latence p95 ;
+- le nombre de requêtes par seconde, RPS ;
+- le taux d’erreurs HTTP 5xx.
+
+La latence p95 indique le temps de réponse maximal pour 95 % des requêtes.
+
+Le RPS indique combien de requêtes sont traitées chaque seconde.
+
+Le taux d’erreur indique le pourcentage de réponses HTTP 5xx.
+
+Ces données sont calculées sur une fenêtre de temps, par exemple :
+
+--window-minutes 5
+
+Cela signifie que Prometheus analyse les cinq dernières minutes.
+
+==================================================
+
+5. KUBERNETES COLLECTOR
+
+Le KubernetesCollector se trouve dans :
+
+agent5_resource_optimization/collectors/kubernetes.py
+
+Il est utilisé lorsque l’application est déployée dans Kubernetes.
+
+Il lit le Deployment Kubernetes pour collecter :
+
+- le nombre de replicas demandés ;
+- le nombre de replicas prêts ;
+- le CPU demandé ;
+- la limite CPU ;
+- la mémoire demandée ;
+- la limite mémoire.
+
+Il utilise également Metrics Server pour collecter :
+
+- le CPU réellement utilisé par les pods ;
+- la mémoire réellement utilisée par les pods.
+
+Il calcule ensuite :
+
+CPU utilisé / limite CPU × 100
+
+et :
+
+mémoire utilisée / limite mémoire × 100
+
+Le KubernetesCollector fonctionne uniquement en lecture.
+
+Il ne modifie pas le Deployment.
+
+Il ne lance aucune commande update, patch, scale ou delete.
+
+==================================================
+
+6. CHOIX DE LA SOURCE
+
+L’utilisateur choisit la source lors du lancement de l’Agent 5.
+
+Pour Docker :
+
+--docker-container fraud-api-base
+
+Pour Kubernetes :
+
+--k8s-deployment fraud-api
+
+Pour un fichier simulé :
+
+--metrics-file agent5_resource_optimization/examples/high_load.json
+
+La CLI impose exactement une source :
+
+Docker
+
+OU
+
+Kubernetes
+
+OU
+
+fichier JSON.
+
+Prometheus peut compléter Docker ou Kubernetes avec :
+
+--prometheus-url http://localhost:9091
+
+==================================================
+
+7. DONNÉES COLLECTÉES
+
+Après collecte, les données sont regroupées dans une structure appelée ResourceMetrics.
+
+Exemple :
+
+{
+  "replicas": 1,
+  "ready_replicas": 1,
+  "cpu_avg_pct": 0.19,
+  "memory_avg_pct": 7.36,
+  "latency_p95_ms": 500,
+  "rps": 0.068285,
+  "error_rate_pct": 0,
+  "queue_depth": null,
+  "cpu_usage_millicores": null,
+  "cpu_request_millicores": null,
+  "cpu_limit_millicores": null,
+  "memory_usage_mib": 279.8,
+  "memory_request_mib": null,
+  "memory_limit_mib": 3804.16
+}
+
+Signification :
+
+replicas :
+nombre d’instances demandées.
+
+ready_replicas :
+nombre d’instances disponibles.
+
+cpu_avg_pct :
+pourcentage CPU utilisé.
+
+memory_avg_pct :
+pourcentage mémoire utilisé.
+
+latency_p95_ms :
+latence p95 en millisecondes.
+
+rps :
+nombre de requêtes par seconde.
+
+error_rate_pct :
+pourcentage de réponses HTTP 5xx.
+
+queue_depth :
+nombre d’opérations en attente.
+
+cpu_usage_millicores :
+CPU réellement utilisé dans Kubernetes.
+
+cpu_request_millicores :
+CPU réservé dans Kubernetes.
+
+cpu_limit_millicores :
+limite CPU Kubernetes.
+
+memory_usage_mib :
+mémoire réellement utilisée.
+
+memory_request_mib :
+mémoire réservée dans Kubernetes.
+
+memory_limit_mib :
+limite mémoire.
+
+queue_depth vaut actuellement null parce que l’API n’utilise aucune file Kafka, RabbitMQ ou autre système de queue.
+
+==================================================
+
+8. COMBINAISON DES DONNÉES
+
+La combinaison est réalisée dans :
+
+agent5_resource_optimization/collectors/aggregate.py
+
+Le fonctionnement est le suivant :
+
+1. DockerCollector ou KubernetesCollector collecte les métriques d’infrastructure.
+
+2. PrometheusCollector collecte les métriques applicatives.
+
+3. L’agrégateur ajoute les valeurs Prometheus aux valeurs d’infrastructure.
+
+4. Le résultat devient un objet ResourceMetrics.
+
+Exemple :
+
+DockerCollector :
+
+CPU = 10 %
+Mémoire = 60 %
+Replicas = 1
+
+PrometheusCollector :
+
+Latence = 300 ms
+RPS = 15
+Erreurs = 0 %
+
+Données combinées :
+
+CPU = 10 %
+Mémoire = 60 %
+Replicas = 1
+Latence = 300 ms
+RPS = 15
+Erreurs = 0 %
+
+Cet objet combiné est ensuite envoyé au moteur de décision de l’Agent 5.
+
+==================================================
+
+9. ACTIVATION DE L’ENVIRONNEMENT VIRTUEL
+
+La commande :
+
+.venv-agent5\Scripts\activate
+
+ne démarre pas l’Agent 5.
+
+Elle active seulement l’environnement Python contenant les dépendances nécessaires.
+
+Lorsque le .venv est activé :
+
+- Python utilise les bonnes bibliothèques ;
+- les commandes de l’Agent deviennent disponibles ;
+- aucune collecte n’est lancée ;
+- aucune analyse n’est effectuée ;
+- aucune recommandation n’est créée.
+
+L’Agent démarre réellement lorsque cette commande est exécutée :
+
+python -m agent5_resource_optimization.cli ...
+
+Si le .venv est activé mais que cette commande n’est pas lancée, l’Agent ne fait rien.
+
+==================================================
+
+10. DÉROULEMENT D’UNE EXÉCUTION
+
+Lorsque l’utilisateur lance :
+
+python -m agent5_resource_optimization.cli --docker-container fraud-api-base --prometheus-url http://localhost:9091 --window-minutes 5 --out agent5_real_metrics.json
+
+les opérations suivantes sont réalisées :
+
+1. La CLI démarre.
+
+2. Elle détecte que la source choisie est Docker.
+
+3. DockerCollector exécute docker stats.
+
+4. DockerCollector récupère CPU et mémoire.
+
+5. PrometheusCollector interroge Prometheus.
+
+6. PrometheusCollector récupère latence, RPS et taux d’erreur.
+
+7. L’agrégateur combine toutes les valeurs.
+
+8. Pydantic valide la structure ResourceMetrics.
+
+9. Les métriques sont transmises au moteur de l’Agent 5.
+
+10. L’Agent compare les métriques avec les seuils.
+
+11. L’Agent choisit une action.
+
+12. L’Agent ajoute les raisons, contraintes, effets attendus et condition de rollback.
+
+13. La recommandation est convertie en JSON.
+
+14. La recommandation est enregistrée dans agent5_real_metrics.json.
+
+15. La recommandation est affichée dans le terminal.
+
+16. Le processus Agent 5 se termine.
+
+L’Agent 5 ne fonctionne donc pas continuellement.
+
+Prometheus continue à collecter, mais l’Agent analyse uniquement lorsqu’il est lancé.
+
+==================================================
+
+11. SEUILS UTILISÉS
+
+Les seuils actuels sont :
+
+CPU élevé :
+75 %
+
+CPU faible :
+30 %
+
+Mémoire élevée :
+85 %
+
+Mémoire faible :
+50 %
+
+Latence maximale :
+500 ms
+
+Queue maximale :
+20
+
+Taux d’erreur maximal :
+5 %
+
+Replicas minimum :
+1
+
+Replicas maximum :
+8
+
+Augmentation mémoire :
+25 %
+
+==================================================
+
+12. DÉCISION SCALE_REPLICAS VERS LE HAUT
+
+L’Agent recommande d’augmenter les replicas lorsqu’au moins une condition est vraie :
+
+CPU >= 75 %
+
+OU
+
+latence p95 > 500 ms
+
+OU
+
+queue_depth > 20
+
+Exemple :
+
+CPU = 90 %
+Latence = 800 ms
+Replicas = 2
+
+Recommandation :
+
+{
+  "action": "SCALE_REPLICAS",
+  "from": 2,
+  "to": 3
+}
+
+L’Agent augmente approximativement de 50 %, avec au moins un replica supplémentaire.
+
+Il ne dépasse jamais le maximum autorisé.
+
+==================================================
+
+13. DÉCISION INCREASE_MEMORY
+
+Si le scale-up n’est pas déclenché, l’Agent vérifie la mémoire.
+
+Condition :
+
+mémoire >= 85 %
+
+ET
+
+limite mémoire connue.
+
+Exemple :
+
+Mémoire = 92 %
+Limite actuelle = 256 MiB
+
+Recommandation :
+
+{
+  "action": "INCREASE_MEMORY",
+  "memory_limit_from_mib": 256,
+  "memory_limit_to_mib": 320
+}
+
+L’augmentation par défaut est de 25 %.
+
+==================================================
+
+14. DÉCISION SCALE_REPLICAS VERS LE BAS
+
+L’Agent recommande une réduction uniquement si toutes les conditions sont vraies :
+
+replicas > 1
+
+CPU < 30 %
+
+mémoire < 50 %
+
+latence <= 500 ms
+
+queue <= 20 ou absente
+
+taux d’erreur <= 5 % ou absent
+
+tous les replicas sont prêts.
+
+Exemple :
+
+Replicas = 3
+CPU = 15 %
+Mémoire = 35 %
+Latence = 200 ms
+Erreurs = 0 %
+
+Recommandation :
+
+{
+  "action": "SCALE_REPLICAS",
+  "from": 3,
+  "to": 2
+}
+
+L’Agent retire seulement un replica à la fois.
+
+==================================================
+
+15. DÉCISION NO_CHANGE
+
+Si aucune règle ne justifie une modification sûre, l’Agent recommande :
+
+{
+  "action": "NO_CHANGE",
+  "from": 1,
+  "to": 1
+}
+
+Exemple :
+
+CPU = 40 %
+Mémoire = 60 %
+Latence = 300 ms
+Erreurs = 0 %
+
+Dans cette situation, les ressources sont considérées comme normales.
+
+Si le taux d’erreur dépasse 5 %, l’Agent bloque également le scale-down et recommande une investigation.
+
+==================================================
+
+16. CONTENU DE LA RECOMMANDATION
+
+La recommandation contient :
+
+- les métriques analysées ;
+- l’action proposée ;
+- les valeurs avant et après ;
+- les raisons de la décision ;
+- la priorité ;
+- la sévérité ;
+- le niveau de confiance ;
+- les limites min/max ;
+- l’effet attendu ;
+- la condition de rollback ;
+- les sources des métriques ;
+- les identifiants de traçabilité.
+
+Exemple simplifié :
+
+{
+  "priority": "P2",
+  "severity": "MEDIUM",
+  "confidence": 0.85,
+  "payload": {
+    "current": {
+      "cpu_avg_pct": 90,
+      "memory_avg_pct": 70
+    },
+    "recommendation": {
+      "action": "SCALE_REPLICAS",
+      "from": 2,
+      "to": 3
+    },
+    "reasons": [
+      "CPU 90.0% exceeds 75.0%"
+    ],
+    "rollback_condition": "Rollback if p95 latency does not improve"
+  }
+}
+
+==================================================
+
+17. STOCKAGE DE LA RECOMMANDATION
+
+La recommandation est enregistrée dans le fichier indiqué par :
+
+--out
+
+Exemple :
+
+--out agent5_real_metrics.json
+
+Le fichier sera créé dans le dossier depuis lequel la commande est exécutée.
+
+Dans le projet actuel :
+
+repo\agent5_real_metrics.json
+
+La recommandation n’est actuellement enregistrée dans :
+
+- aucune base de données ;
+- aucun Redis ;
+- aucun Kafka ;
+- aucune API ;
+- aucun orchestrateur.
+
+Le stockage actuel est uniquement un fichier JSON.
+
+Si l’Agent est relancé avec le même nom de fichier, l’ancienne recommandation est remplacée.
+
+==================================================
+
+18. FLUX COMPLET
+
+1. FastAPI reçoit des requêtes de prédiction.
+
+2. FastAPI expose les métriques sur /metrics.
+
+3. Prometheus collecte régulièrement /metrics.
+
+4. L’utilisateur active éventuellement le .venv.
+
+5. L’utilisateur lance la CLI de l’Agent 5.
+
+6. La CLI choisit Docker, Kubernetes ou un fichier JSON.
+
+7. DockerCollector ou KubernetesCollector collecte l’infrastructure.
+
+8. PrometheusCollector collecte latence, RPS et erreurs.
+
+9. aggregate.py fusionne les données.
+
+10. Pydantic valide ResourceMetrics.
+
+11. optimizer.py compare les valeurs aux seuils.
+
+12. L’Agent choisit une action :
+
+NO_CHANGE
+
+OU
+
+SCALE_REPLICAS
+
+OU
+
+INCREASE_MEMORY.
+
+13. L’Agent prépare les raisons, contraintes et rollback.
+
+14. La recommandation est convertie en JSON.
+
+15. La CLI enregistre le fichier indiqué par --out.
+
+16. Le résultat est affiché dans le terminal.
+
+17. Le processus Agent 5 se termine.
+
+==================================================
+
+19. CONCLUSION
+
+L’Agent 5 observe l’état du service au moment de son lancement.
+
+Il combine :
+
+- les métriques d’infrastructure venant de Docker ou Kubernetes ;
+- les métriques applicatives venant de Prometheus.
+
+Il applique ensuite des règles déterministes pour choisir entre :
+
+- ne rien modifier ;
+- augmenter ou réduire les replicas ;
+- augmenter la mémoire.
+
+Enfin, il prépare une recommandation JSON explicable et traçable.
+
+Cette recommandation est enregistrée dans un fichier local.
+
+L’Agent 5 ne modifie pas le système et n’envoie encore rien à l’orchestrateur.
