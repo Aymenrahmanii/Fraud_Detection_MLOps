@@ -65,6 +65,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         Path(args.out).write_text(assessment.model_dump_json(indent=2))
         print(assessment.model_dump_json(indent=2))
+        all_findings = [
+            *assessment.tests.findings,
+            *assessment.quality.findings,
+            *assessment.security.findings,
+        ]
+        if all_findings:
+            print(f"\nFindings ({len(all_findings)}):", file=sys.stderr)
+            for f in all_findings:
+                where = f"{f.file}:{f.line}" if f.line else f.file
+                print(f"  [{f.scanner}] {where}  {f.rule}  {f.message}", file=sys.stderr)
         print(f"\nDecision: {assessment.decision}", file=sys.stderr)
         return 1 if assessment.decision == "BLOCK" else 0
 
