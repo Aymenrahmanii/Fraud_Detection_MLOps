@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "assessment_id": "REL-TEST-001",
+  "commit": "56c48f9667017db3e401227a04dafb0598df2f9b",
+  "artifact": {
+    "image": "fraud-api:ci",
+    "digest": ""
+  },
+  "tests": {
+    "total": 54,
+    "passed": 54,
+    "failed": 0,
+    "skipped": 0,
+    "coverage_pct": 81.5,
+    "flaky_detected": 0
+  },
+  "quality": {
+    "gate": "PASSED",
+    "new_critical_issues": 0,
+    "duplication_pct": 0.0
+  },
+  "security": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "secrets_found": 0,
+    "highest_cvss": 0.0,
+    "policy_exception_required": false
+  },
+  "decision": "ALLOW",
+  "blocking_reasons": [],
+  "warnings": [],
+  "policy_version": "release-policy-1.0",
+  "rationale": null
+}
