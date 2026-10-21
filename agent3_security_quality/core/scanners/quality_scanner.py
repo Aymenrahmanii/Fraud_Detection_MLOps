@@ -10,7 +10,7 @@ import shutil
 import subprocess
 
 from agent3_security_quality.core.errors import ScannerExecutionError, ScannerUnavailableError
-from agent3_security_quality.core.schemas import QualityResults
+from agent3_security_quality.core.schemas import Finding, QualityResults
 
 # The rule categories that fail the gate. This *is* the quality policy --
 # extend it deliberately, not by accident.
@@ -24,6 +24,14 @@ from agent3_security_quality.core.schemas import QualityResults
 # happen to share a letter prefix (e.g. flake8-simplify's "SIM1xx" also
 # starts with "S"). Asking ruff for exactly these codes avoids both
 # problems at once.
+# F821 : undefined-name : Utilisation d'une variable ou d'une fonction non définie. 
+# F811 : Sécurité (flake8-bandit) : Réutilisation du nom d'une variable ou d'une fonction déjà déclarée.
+# E9 : SyntaxError / IndentationError: Erreur de syntaxe ou erreur critique.
+# S : Security : Règles de sécurité (par exemple, S105 pour les mots de passe en clair).
+#print(utilisateur_id)  # F821: Le nom 'utilisateur_id' n'est pas défini
+#import os  # F811: Importé mais jamais utilisé car redéfini ci-dessous
+
+
 CRITICAL_RULE_CODES = ("F821", "F811", "E9", "S")
 
 
@@ -48,4 +56,15 @@ def run(*targets: str) -> QualityResults:
         gate="FAILED" if critical else "PASSED",
         new_critical_issues=len(critical),
         duplication_pct=0.0,  # TODO(phase 3): wire in a real duplication tool
+        findings=[
+            Finding(
+                scanner="ruff",
+                rule=i.get("code") or "",
+                message=i.get("message", ""),
+                file=i.get("filename", ""),
+                line=(i.get("location") or {}).get("row"),
+                severity="critical",
+            )
+            for i in critical
+        ],
     )

@@ -8,11 +8,13 @@ scores) is a Phase 3 improvement, not a blocker for the gate to exist.
 """
 
 import json
+import re
 import shutil
 import subprocess
+from pathlib import Path
 
 from agent3_security_quality.core.errors import ScannerExecutionError, ScannerUnavailableError
-from agent3_security_quality.core.schemas import SecurityResults
+from agent3_security_quality.core.schemas import Finding, SecurityResults
 
 
 def run(requirements_path: str = "requirements.txt") -> SecurityResults:
@@ -36,6 +38,34 @@ def run(requirements_path: str = "requirements.txt") -> SecurityResults:
     dependencies = data.get("dependencies", []) if isinstance(data, dict) else data
     vuln_count = sum(len(dep.get("vulns", [])) for dep in dependencies)
 
+    try:
+        req_lines = Path(requirements_path).read_text().splitlines()
+    except OSError:
+        req_lines = []
+
+    def _req_line(package: str) -> int | None:
+        for number, text in enumerate(req_lines, start=1):
+            name = re.split(r"[=<>~!\[; ]", text.strip(), maxsplit=1)[0]
+            if name.lower() == package.lower():
+                return number
+        return None
+
+    findings = [
+        Finding(
+            scanner="pip-audit",
+            rule=vuln.get("id", ""),
+            message=(
+                f"{dep.get('name')} {dep.get('version')}: fix in "
+                f"{', '.join(vuln.get('fix_versions') or []) or 'no fix available'}"
+            ),
+            file=requirements_path,
+            line=_req_line(dep.get("name", "")),
+            severity="high",
+        )
+        for dep in dependencies
+        for vuln in dep.get("vulns", [])
+    ]
+
     return SecurityResults(
         critical=0,
         high=vuln_count,
@@ -43,4 +73,5 @@ def run(requirements_path: str = "requirements.txt") -> SecurityResults:
         secrets_found=0,
         highest_cvss=0.0,
         policy_exception_required=False,
+        findings=findings,
     )

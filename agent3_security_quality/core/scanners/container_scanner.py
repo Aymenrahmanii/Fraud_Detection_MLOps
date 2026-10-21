@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 from agent3_security_quality.core.errors import ScannerExecutionError, ScannerUnavailableError
-from agent3_security_quality.core.schemas import SecurityResults
+from agent3_security_quality.core.schemas import Finding, SecurityResults
 
 _SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM")
 
@@ -28,12 +28,25 @@ def run(image_ref: str) -> SecurityResults:
 
     counts = {sev: 0 for sev in _SEVERITIES}
     highest_cvss = 0.0
+    findings: list[Finding] = []
 
     for scan_target in data.get("Results", []) or []:
         for vuln in scan_target.get("Vulnerabilities", []) or []:
             severity = (vuln.get("Severity") or "").upper()
             if severity in counts:
                 counts[severity] += 1
+                findings.append(
+                    Finding(
+                        scanner="trivy",
+                        rule=vuln.get("VulnerabilityID", ""),
+                        message=(
+                            f"{vuln.get('PkgName')} {vuln.get('InstalledVersion')}"
+                            f" -> fixed in {vuln.get('FixedVersion') or 'n/a'}"
+                        ),
+                        file=scan_target.get("Target", ""),
+                        severity=severity.lower(),
+                    )
+                )
             cvss = vuln.get("CVSS", {}) or {}
             for source_scores in cvss.values():
                 score = (source_scores or {}).get("V3Score", 0.0) or 0.0
@@ -46,4 +59,5 @@ def run(image_ref: str) -> SecurityResults:
         secrets_found=0,
         highest_cvss=highest_cvss,
         policy_exception_required=False,
+        findings=findings,
     )

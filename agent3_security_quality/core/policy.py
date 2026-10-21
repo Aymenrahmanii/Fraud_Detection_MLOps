@@ -26,6 +26,7 @@ def merge_security(parts: list[SecurityResults]) -> SecurityResults:
         secrets_found=sum(p.secrets_found for p in parts),
         highest_cvss=max((p.highest_cvss for p in parts), default=0.0),
         policy_exception_required=any(p.policy_exception_required for p in parts),
+        findings=[f for p in parts for f in p.findings],
     )
 
 

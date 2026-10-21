@@ -38,6 +38,7 @@ def test_test_runner_parses_a_failing_suite(tmp_path):
     assert result.total == 1
     assert result.failed == 1
     assert result.passed == 0
+    assert result.findings[0].rule.endswith("test_fail")
 
 
 def test_quality_scanner_flags_undefined_name(tmp_path):
@@ -48,6 +49,9 @@ def test_quality_scanner_flags_undefined_name(tmp_path):
 
     assert result.gate == "FAILED"
     assert result.new_critical_issues >= 1
+    assert result.findings[0].file.endswith("bad.py")
+    assert result.findings[0].line == 2
+    assert result.findings[0].rule == "F821"
 
 
 def test_quality_scanner_passes_clean_file(tmp_path):
@@ -129,7 +133,9 @@ def test_secrets_scanner_counts_findings(monkeypatch, tmp_path):
     monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/gitleaks")
 
     report_path = tmp_path / "gitleaks-report.json"
-    findings = [{"RuleID": "generic-api-key", "File": "config.py"}]
+    findings = [
+        {"RuleID": "generic-api-key", "File": "config.py", "StartLine": 7, "Secret": "hunter2"}
+    ]
 
     def fake_run(cmd, capture_output, text):
         report_path.write_text(json.dumps(findings))
@@ -140,6 +146,9 @@ def test_secrets_scanner_counts_findings(monkeypatch, tmp_path):
     result = secrets_scanner.run(source=str(tmp_path), report_path=str(report_path))
 
     assert result.secrets_found == 1
+    assert (result.findings[0].file, result.findings[0].line) == ("config.py", 7)
+    # the report must say where a secret is, never repeat it
+    assert "hunter2" not in result.findings[0].model_dump_json()
 
 
 def test_secrets_scanner_raises_when_gitleaks_missing(monkeypatch):
