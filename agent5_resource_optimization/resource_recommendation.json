@@ -1,16 +1,16 @@
 {
-  "message_id": "MSG-5A4C2A795B9F",
+  "message_id": "MSG-D619CC4A96F5",
   "schema_version": "1.0",
-  "correlation_id": "INC-C6B7C59679E9",
+  "correlation_id": "INC-6656119C9F52",
   "causation_id": null,
-  "trace_id": "TRACE-1D85E3B3107B",
+  "trace_id": "TRACE-E3849103DBBD",
   "source": "resource-optimization-agent",
   "target": "orchestrator",
   "topic": "resource.recommendation.created",
   "message_type": "RESOURCE_RECOMMENDATION",
   "priority": "P3",
   "severity": "LOW",
-  "timestamp": "2026-10-08T08:39:12.163004Z",
+  "timestamp": "2026-10-21T19:49:19.245756Z",
   "environment": "development",
   "service": {
     "service_id": "fraud-api",
@@ -18,20 +18,20 @@
     "version": "unknown"
   },
   "evidence_refs": [
-    "docker:fraud-api-basee",
+    "docker:fraud-api-base",
     "prometheus:http://localhost:9091"
   ],
   "confidence": 0.8,
   "requires_ack": true,
-  "idempotency_key": "INC-C6B7C59679E9:RESOURCE_RECOMMENDATION:v1",
+  "idempotency_key": "INC-6656119C9F52:RESOURCE_RECOMMENDATION:v1",
   "payload": {
-    "recommendation_id": "RES-29610307C8E4",
+    "recommendation_id": "RES-D93A898E8042",
     "window": "5m",
     "current": {
       "replicas": 1,
       "ready_replicas": 1,
-      "cpu_avg_pct": 0.26,
-      "memory_avg_pct": 8.88,
+      "cpu_avg_pct": 4.29,
+      "memory_avg_pct": 6.0,
       "latency_p95_ms": null,
       "rps": 0.0,
       "error_rate_pct": 0.0,
@@ -39,7 +39,7 @@
       "cpu_usage_millicores": null,
       "cpu_request_millicores": null,
       "cpu_limit_millicores": null,
-      "memory_usage_mib": 337.6,
+      "memory_usage_mib": 228.3,
       "memory_request_mib": null,
       "memory_limit_mib": 3804.16
     },
@@ -59,8 +59,8 @@
     },
     "expected_effect": {
       "latency_reduction_pct": 0.0,
-      "cpu_target_pct": 0.26,
-      "memory_target_pct": 8.88
+      "cpu_target_pct": 4.29,
+      "memory_target_pct": 6.0
     },
     "reasons": [
       "No policy threshold justifies a safe resource change"

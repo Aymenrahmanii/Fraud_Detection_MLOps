@@ -1,16 +1,16 @@
 {
-  "message_id": "MSG-9C5C4FEA5843",
+  "message_id": "MSG-6F5501607CA4",
   "schema_version": "1.0",
-  "correlation_id": "INC-351DEE35057B",
+  "correlation_id": "INC-D298ABE2F172",
   "causation_id": null,
-  "trace_id": "TRACE-FDB7962139D9",
+  "trace_id": "TRACE-56B1C773D9A9",
   "source": "resource-optimization-agent",
   "target": "orchestrator",
   "topic": "resource.recommendation.created",
   "message_type": "RESOURCE_RECOMMENDATION",
   "priority": "P3",
   "severity": "LOW",
-  "timestamp": "2026-10-08T09:02:52.111479Z",
+  "timestamp": "2026-10-21T19:50:46.094732Z",
   "environment": "development",
   "service": {
     "service_id": "fraud-api",
@@ -22,9 +22,9 @@
   ],
   "confidence": 0.99,
   "requires_ack": true,
-  "idempotency_key": "INC-351DEE35057B:RESOURCE_RECOMMENDATION:v1",
+  "idempotency_key": "INC-D298ABE2F172:RESOURCE_RECOMMENDATION:v1",
   "payload": {
-    "recommendation_id": "RES-043BF15A8809",
+    "recommendation_id": "RES-9BB316C75581",
     "window": "15m",
     "current": {
       "replicas": 2,
