@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Counts refer to all available predictions, not just the labeled subset.",
+  "properties": {
+    "as_of": {
+      "format": "date-time",
+      "title": "As Of",
+      "type": "string"
+    },
+    "available_prediction_count": {
+      "maximum": 20000,
+      "minimum": 1,
+      "title": "Available Prediction Count",
+      "type": "integer"
+    },
+    "window_end": {
+      "format": "date-time",
+      "title": "Window End",
+      "type": "string"
+    },
+    "window_start": {
+      "format": "date-time",
+      "title": "Window Start",
+      "type": "string"
+    }
+  },
+  "required": [
+    "window_start",
+    "window_end",
+    "as_of",
+    "available_prediction_count"
+  ],
+  "title": "EvaluationEvidenceContext",
+  "type": "object"
+}

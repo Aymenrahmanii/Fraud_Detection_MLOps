@@ -1,0 +1,9 @@
+include agent6_mlops_lifecycle/README.md
+include agent6_mlops_lifecycle/requirements.txt
+include agent6_mlops_lifecycle/constraints-model.txt
+include agent6_mlops_lifecycle/constraints-tested.txt
+include agent6_mlops_lifecycle/ruff.toml
+recursive-include agent6_mlops_lifecycle *.py *.json *.jinja2 *.html *.css *.js *.md *.example py.typed
+recursive-exclude agent6_mlops_lifecycle/tests *
+exclude agent6_mlops_lifecycle/.env
+recursive-exclude artifacts *

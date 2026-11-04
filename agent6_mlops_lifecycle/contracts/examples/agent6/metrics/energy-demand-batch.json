@@ -1,0 +1,43 @@
+{
+  "project_id": "energy-demand-metrics",
+  "model_id": "forecaster",
+  "model_version": "v2",
+  "dataset_ref": "synthetic-energy-demand-metrics-window",
+  "evidence_ref": "local:synthetic-energy-demand",
+  "evidence_context": {
+    "window_start": "2026-09-30T00:00:00Z",
+    "window_end": "2026-10-01T00:00:00Z",
+    "as_of": "2026-10-03T00:00:00Z",
+    "available_prediction_count": 5
+  },
+  "samples": [
+    {
+      "task_type": "regression",
+      "observation_id": "record-1",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 10,
+      "predicted": 10.2
+    },
+    {
+      "task_type": "regression",
+      "observation_id": "record-2",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 12,
+      "predicted": 11.8
+    },
+    {
+      "task_type": "regression",
+      "observation_id": "record-3",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 14,
+      "predicted": 14.1
+    },
+    {
+      "task_type": "regression",
+      "observation_id": "record-4",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 16,
+      "predicted": 15.9
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "project_id": "support-routing-metrics",
+  "model_id": "router",
+  "model_version": "v2",
+  "dataset_ref": "synthetic-support-routing-metrics-window",
+  "evidence_ref": "local:synthetic-support-routing",
+  "evidence_context": {
+    "window_start": "2026-09-30T00:00:00Z",
+    "window_end": "2026-10-01T00:00:00Z",
+    "as_of": "2026-10-03T00:00:00Z",
+    "available_prediction_count": 8
+  },
+  "samples": [
+    {
+      "task_type": "binary_classification",
+      "observation_id": "record-1",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 1,
+      "predicted": 1,
+      "positive_probability": 0.9
+    },
+    {
+      "task_type": "binary_classification",
+      "observation_id": "record-2",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 1,
+      "predicted": 0,
+      "positive_probability": 0.4
+    },
+    {
+      "task_type": "binary_classification",
+      "observation_id": "record-3",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 1,
+      "predicted": 1,
+      "positive_probability": 0.8
+    },
+    {
+      "task_type": "binary_classification",
+      "observation_id": "record-4",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 0,
+      "predicted": 1,
+      "positive_probability": 0.7
+    },
+    {
+      "task_type": "binary_classification",
+      "observation_id": "record-5",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 0,
+      "predicted": 0,
+      "positive_probability": 0.2
+    },
+    {
+      "task_type": "binary_classification",
+      "observation_id": "record-6",
+      "observed_at": "2026-09-30T08:00:00Z",
+      "expected": 0,
+      "predicted": 0,
+      "positive_probability": 0.1
+    }
+  ]
+}

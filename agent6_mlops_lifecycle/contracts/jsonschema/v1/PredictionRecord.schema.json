@@ -1,0 +1,186 @@
+{
+  "$defs": {
+    "ObservationTaskType": {
+      "enum": [
+        "binary_classification",
+        "regression"
+      ],
+      "type": "string"
+    },
+    "ObservationValue": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "binary_classification"
+          }
+        },
+        "required": [
+          "task_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "predicted": {
+            "enum": [
+              0,
+              1
+            ],
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "regression"
+          }
+        },
+        "required": [
+          "task_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "positive_probability": {
+            "type": "null"
+          },
+          "decision_threshold": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "description": "observed_at is prediction time; recorded_at is when it became available.",
+  "properties": {
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "tenant_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "model_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Model Id",
+      "type": "string"
+    },
+    "model_version": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "#/$defs/ObservationTaskType"
+    },
+    "observation_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Observation Id",
+      "type": "string"
+    },
+    "source_ref": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Source Ref",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "predicted": {
+      "$ref": "#/$defs/ObservationValue"
+    },
+    "positive_probability": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Positive Probability"
+    },
+    "decision_threshold": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decision Threshold"
+    },
+    "input_ref": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Ref"
+    }
+  },
+  "required": [
+    "tenant_id",
+    "project_id",
+    "model_id",
+    "model_version",
+    "task_type",
+    "observation_id",
+    "source_ref",
+    "observed_at",
+    "recorded_at",
+    "predicted"
+  ],
+  "title": "PredictionRecord",
+  "type": "object"
+}
