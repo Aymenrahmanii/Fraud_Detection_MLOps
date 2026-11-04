@@ -1,0 +1,8 @@
+# Dependencies for Agent 2 (Diagnosis & RCA).
+pydantic>=2.9,<3
+jsonschema>=4.23,<5
+pytest>=8.3,<10
+# Optional: vector retrieval (--qdrant).
+qdrant-client>=1.13,<2
+# The default LLM uses an OpenAI-compatible API through the standard library.
+# Optional: Claude review (--llm anthropic) needs the anthropic package.
