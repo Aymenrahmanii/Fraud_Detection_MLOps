@@ -1,0 +1,58 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "transaction_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+      "title": "Transaction Id",
+      "type": "string"
+    },
+    "source_id": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Source Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "FRAUD_CONFIRMED",
+        "LEGITIMATE_CONFIRMED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "verification_status": {
+      "const": "VERIFIED",
+      "title": "Verification Status",
+      "type": "string"
+    },
+    "evidence_ref": {
+      "maxLength": 160,
+      "minLength": 3,
+      "title": "Evidence Ref",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "transaction_id",
+    "source_id",
+    "status",
+    "verification_status",
+    "evidence_ref",
+    "occurred_at"
+  ],
+  "title": "BusinessEvent",
+  "type": "object"
+}

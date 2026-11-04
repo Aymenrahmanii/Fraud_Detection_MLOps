@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "ObservationIngestionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "dataset_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Dataset Ref",
+          "type": "string"
+        },
+        "model_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Model Version",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tenant_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "window_end": {
+          "format": "date-time",
+          "title": "Window End",
+          "type": "string"
+        },
+        "window_start": {
+          "format": "date-time",
+          "title": "Window Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "project_id",
+        "model_id",
+        "model_version",
+        "dataset_ref",
+        "window_start",
+        "window_end",
+        "as_of"
+      ],
+      "title": "ObservationIngestionRequest",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The CLI resolves paths against the configuration file's directory.",
+  "properties": {
+    "outcomes_file": {
+      "format": "path",
+      "title": "Outcomes File",
+      "type": "string"
+    },
+    "predictions_file": {
+      "format": "path",
+      "title": "Predictions File",
+      "type": "string"
+    },
+    "query": {
+      "$ref": "#/$defs/ObservationIngestionRequest"
+    }
+  },
+  "required": [
+    "query",
+    "predictions_file",
+    "outcomes_file"
+  ],
+  "title": "LocalObservationSourceConfig",
+  "type": "object"
+}

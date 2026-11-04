@@ -6,3 +6,20 @@ __pycache__/
 *.pptx
 Data/
 K8s/
+
+# Producer-local environment configuration is supplied at runtime.
+**/.env
+**/.env.*
+
+# Local application records and MLflow runtime state are never source artifacts.
+/artifacts/application.sqlite3*
+/mlruns/
+
+# Never send private state, environments or local build output to the Docker daemon.
+.git/
+.venv*/
+artifacts/
+build/
+dist/
+*.egg-info/
+agent6_mlops_lifecycle/tests/

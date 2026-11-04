@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77,<85"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fraud-agent6-mlops-lifecycle"
+version = "1.0.0"
+description = "Agent 6 autonomous model monitoring, evidence evaluation and lifecycle control"
+readme = "agent6_mlops_lifecycle/README.md"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "fastapi>=0.115,<1", "uvicorn>=0.30,<1", "pydantic>=2.12,<3",
+  "pydantic-settings>=2.6,<3", "httpx>=0.28,<1", "jinja2>=3.1.6,<4", "prometheus-client>=0.21,<1",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2,<4"]
+ui-test = ["playwright>=1.50,<2"]
+dev = ["pytest>=8.3,<10", "mypy>=1.15,<3", "ruff>=0.11,<1", "build>=1.2,<2"]
+
+[project.scripts]
+agent6 = "agent6_mlops_lifecycle.cli.main:main"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["agent6_mlops_lifecycle", "agent6_mlops_lifecycle.*"]
+exclude = ["agent6_mlops_lifecycle.tests", "agent6_mlops_lifecycle.tests.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+agent6_mlops_lifecycle = [
+  "py.typed", "README.md", "PORT_PROVENANCE.json", ".env.example",
+  "assurance/prompts/*.jinja2", "monitoring/web/*.html", "monitoring/web/*.css", "monitoring/web/*.js",
+  "docs/*.md", "configs/*.json", "contracts/jsonschema/v1/*.json",
+  "requirements.txt", "constraints-model.txt", "constraints-tested.txt",
+  "contracts/examples/agent6/*/*.json", "contracts/examples/agent6/*/*.csv",
+  "contracts/examples/agent6/*/*.md",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["agent6_mlops_lifecycle"]
+exclude = ["agent6_mlops_lifecycle/tests"]
+
+[[tool.mypy.overrides]]
+module = ["mlflow", "mlflow.*", "sklearn", "sklearn.*", "pandas", "pandas.*"]
+ignore_missing_imports = true

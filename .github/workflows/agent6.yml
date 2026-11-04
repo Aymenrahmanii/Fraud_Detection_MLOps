@@ -1,0 +1,36 @@
+name: Agent 6 MLOps lifecycle
+on:
+  pull_request:
+    branches: [main, "Agent6/**"]
+  push:
+    branches: ["Agent6/**"]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - name: Install application, Agent 6 and existing agent test tools
+        run: pip install -r requirements.txt -e ".[dev]" -r agent3_security_quality/requirements.txt -r agent5_resource_optimization/requirements.txt
+      - name: Unit and integration contracts, including existing agents
+        run: python -m pytest -q API/tests agent3_security_quality/tests agent5_resource_optimization/tests agent6_mlops_lifecycle/tests
+      - name: Agent 6 static checks
+        run: |
+          ruff check agent6_mlops_lifecycle
+          mypy agent6_mlops_lifecycle --exclude tests
+      - name: Actual saved models and autonomous candidate acceptance
+        run: python -m agent6_mlops_lifecycle validate
+      - name: Build Agent 6 wheel
+        run: python -m build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent6-aggregate-acceptance
+          path: |
+            artifacts/agent6/validation/**/result.json
+            artifacts/agent6/candidates/**/evaluation.json
+          if-no-files-found: ignore

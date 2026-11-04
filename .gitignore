@@ -14,3 +14,24 @@ coverage.xml
 .coverage
 gitleaks-report.json
 .agent3_last_assessment.json
+
+# Historical Agent 6 artifacts and local model environments
+.agent6/
+.venv-agent6/
+
+# Local serving prediction log; retain the configuration template.
+artifacts/agent6/
+!API/telemetry/.env.example
+
+# Local application records and MLflow runtime state are never source artifacts.
+/artifacts/application.sqlite3*
+/mlruns/
+
+# Agent 6 local state, credentials, training artifacts and build output.
+/artifacts/agent6/
+/artifacts/agent6-container/
+/.venv-agent6/
+*.egg-info/
+/build/
+/dist/
+!agent6_mlops_lifecycle/.env.example
