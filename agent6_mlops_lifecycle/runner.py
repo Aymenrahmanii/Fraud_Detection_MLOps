@@ -18,17 +18,18 @@ from urllib.request import Request, urlopen
 from agent6_mlops_lifecycle.assurance.bootstrap import configure_fraud_benchmark
 from agent6_mlops_lifecycle.cli.monitor import ensure_monitor_token
 from agent6_mlops_lifecycle.paths import ENV_FILE, ROOT
+from agent6_mlops_lifecycle.processes import NO_WINDOW_FLAGS
 
 
 def stop_child(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is not None:
         return
-    if os.name == "nt":
+    if sys.platform == "win32":
         subprocess.run(
             ["taskkill", "/PID", str(process.pid), "/T", "/F"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            creationflags=NO_WINDOW_FLAGS,
             check=False,
         )
     else:
@@ -168,7 +169,7 @@ def main(argv: list[str] | None = None) -> None:
                         env=env,
                         stdout=log,
                         stderr=subprocess.STDOUT,
-                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                        creationflags=NO_WINDOW_FLAGS,
                     )
                     children.append(process)
                     deadline = time.monotonic() + 90

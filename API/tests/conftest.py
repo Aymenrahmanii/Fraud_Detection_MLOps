@@ -35,7 +35,12 @@ def _install_mlflow_stub() -> None:
         return
 
     fake_loaded_model = MagicMock()
-    fake_loaded_model.predict.return_value = np.array([0])
+    # Concrete attributes survive pytest's static monkeypatch restoration;
+    # lazily created MagicMock children can otherwise disappear between tests.
+    fake_loaded_model.predict = MagicMock(return_value=np.array([0]))
+    fake_loaded_model.unwrap_python_model = MagicMock(
+        side_effect=NotImplementedError("No probability adapter in the API contract stub")
+    )
 
     mlflow_module = MagicMock(name="mlflow_stub")
     mlflow_module.pyfunc.load_model = MagicMock(return_value=fake_loaded_model)

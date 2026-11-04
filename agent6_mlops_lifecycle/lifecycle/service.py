@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import sqlite3
-import subprocess
+import sys
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -20,6 +20,7 @@ from agent6_mlops_lifecycle.monitoring.models import MonitoringReport
 from agent6_mlops_lifecycle.monitoring.settings import ROOT, MonitoringSettings
 from agent6_mlops_lifecycle.monitoring.source import DirectObservationSource
 from agent6_mlops_lifecycle.monitoring.state import MonitorState
+from agent6_mlops_lifecycle.processes import NO_WINDOW_FLAGS
 
 
 class LifecycleService:
@@ -144,7 +145,6 @@ class LifecycleService:
                 self.store.evidence.put, "training-request", request
             )
             job = await asyncio.to_thread(self.store.save, job, input_snapshot_ref=snapshot_ref)
-            flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
             env = {
                 key: value
                 for key, value in os.environ.items()
@@ -180,7 +180,7 @@ class LifecycleService:
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=stream,
-                    creationflags=flags,
+                    creationflags=NO_WINDOW_FLAGS,
                 )
                 raw, _ = await asyncio.wait_for(
                     process.communicate(encode(request)), timeout=self.policy.timeout_seconds
@@ -216,7 +216,7 @@ class LifecycleService:
             )
         finally:
             if process is not None and process.returncode is None:
-                if os.name == "nt":
+                if sys.platform == "win32":
                     killer = await asyncio.create_subprocess_exec(
                         "taskkill",
                         "/PID",
@@ -225,7 +225,7 @@ class LifecycleService:
                         "/F",
                         stdout=asyncio.subprocess.DEVNULL,
                         stderr=asyncio.subprocess.DEVNULL,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=NO_WINDOW_FLAGS,
                     )
                     await killer.wait()
                 else:

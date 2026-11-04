@@ -20,6 +20,7 @@ from agent6_mlops_lifecycle.assurance.store import AssuranceStore
 from agent6_mlops_lifecycle.assurance.worker import artifact_digest
 from agent6_mlops_lifecycle.monitoring.models import MonitorScope
 from agent6_mlops_lifecycle.monitoring.settings import ROOT
+from agent6_mlops_lifecycle.processes import NO_WINDOW_FLAGS
 from agent6_mlops_lifecycle.runner import stop_child
 
 
@@ -130,7 +131,7 @@ def main() -> None:
                     env=env,
                     stdout=log,
                     stderr=subprocess.STDOUT,
-                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                    creationflags=NO_WINDOW_FLAGS,
                 )
                 children.append(process)
                 deadline = time.monotonic() + 90

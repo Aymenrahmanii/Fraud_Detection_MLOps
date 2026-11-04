@@ -21,7 +21,8 @@ jobs:
       - name: Agent 6 static checks
         run: |
           ruff check agent6_mlops_lifecycle
-          mypy agent6_mlops_lifecycle --exclude tests
+          mypy agent6_mlops_lifecycle --exclude tests --platform linux
+          mypy agent6_mlops_lifecycle --exclude tests --platform win32
       - name: Actual saved models and autonomous candidate acceptance
         run: python -m agent6_mlops_lifecycle validate
       - name: Build Agent 6 wheel

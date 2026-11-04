@@ -3,7 +3,6 @@
 import asyncio
 import json
 import os
-import subprocess
 import sys
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -26,6 +25,7 @@ from agent6_mlops_lifecycle.contracts.mlops_projects import (
 from agent6_mlops_lifecycle.evaluation.builtin_metrics import default_metric_registry
 from agent6_mlops_lifecycle.evaluation.policy_evaluator import MetricPolicyEvaluator
 from agent6_mlops_lifecycle.monitoring.settings import ROOT, MonitoringSettings
+from agent6_mlops_lifecycle.processes import NO_WINDOW_FLAGS
 
 
 def policy(settings: MonitoringSettings) -> MetricEvaluationPolicy:
@@ -74,7 +74,6 @@ async def infer(
     env.update(
         {"PYTHONPATH": str(ROOT), "PYTHONDONTWRITEBYTECODE": "1", "MLFLOW_DISABLE_AGENT_HINT": "1"}
     )
-    flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     process = await asyncio.create_subprocess_exec(
         str(settings.benchmark_python),
         "-B",
@@ -85,7 +84,7 @@ async def infer(
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
-        creationflags=flags,
+        creationflags=NO_WINDOW_FLAGS,
     )
     try:
         output, _ = await asyncio.wait_for(
@@ -102,7 +101,7 @@ async def infer(
                     "/F",
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
-                    creationflags=flags,
+                    creationflags=NO_WINDOW_FLAGS,
                 )
                 await killer.wait()
             else:
