@@ -1,0 +1,445 @@
+import asyncio
+
+import pytest
+
+from agent1_monitoring.decision import (
+    Action,
+    DecisionMaker,
+    DecisionPolicy,
+    DecisionRecord,
+    ambiguity,
+    score_actions,
+)
+from agent1_monitoring.grouping import Category, Incident
+from agent1_monitoring.reasoning import Evidence, Hypothesis
+from agent1_monitoring.shared_contracts.enums import Severity
+
+POLICY = DecisionPolicy()
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = 1_000_000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+class Reader:
+    def __init__(self, signals: dict[str, dict[str, float | None]], fail: bool = False) -> None:
+        self.signals = signals
+        self.fail = fail
+        self.calls: list[str] = []
+
+    async def read(self, service_id: str) -> dict[str, float | None]:
+        self.calls.append(service_id)
+        if self.fail:
+            raise ConnectionError("prometheus down")
+        return self.signals.get(service_id, {})
+
+
+def hyp(service: str, p: float) -> Hypothesis:
+    return Hypothesis(service, p, ())
+
+
+def incident(severity: Severity = Severity.MEDIUM) -> Incident:
+    return Incident(
+        "INC-1",
+        "s:prod:error_rate",
+        "payment-service",
+        "prod",
+        Category.ERROR_RATE,
+        0,
+        0,
+        1,
+        severity,
+        frozenset({"slo"}),
+        {},
+    )
+
+
+def decide(
+    maker: DecisionMaker, hypotheses: list[Hypothesis], incidents: list[Incident] | None = None
+) -> DecisionRecord:
+    record = asyncio.run(maker.decide(hypotheses, incidents or [incident()]))
+    assert record is not None
+    return record
+
+
+def test_confident_agent_alerts_directly() -> None:
+    reader = Reader({})
+    record = decide(DecisionMaker(POLICY, reader), [hyp("payments-db", 0.92), hyp("api", 0.58)])
+    assert record.action is Action.ALERT
+    assert record.target == "payments-db"
+    assert record.notify
+    assert reader.calls == []  # no need to collect more
+
+
+def test_hesitating_agent_collects_then_alerts_when_confirmed() -> None:
+    reader = Reader({"payment-service": {"error_rate": 0.2, "latency_p95_ms": 90.0}})
+    record = decide(DecisionMaker(POLICY, reader), [hyp("payment-service", 0.5)])
+    assert reader.calls == ["payment-service"]
+    assert record.investigations[0].outcome == "confirmed"
+    assert record.action is Action.ALERT
+    assert record.probability == pytest.approx(1 - 0.5 * 0.4)  # noisy-OR with confirm 0.6
+
+
+def test_hesitating_agent_waits_when_collection_does_not_confirm() -> None:
+    healthy = {"error_rate": 0.001, "latency_p95_ms": 80.0, "memory_slope_mb_min": 0.0}
+    reader = Reader({"payment-service": healthy})
+    record = decide(DecisionMaker(POLICY, reader), [hyp("payment-service", 0.5)])
+    assert record.investigations[0].outcome == "not_confirmed"
+    assert record.action is Action.WAIT
+    assert record.probability == pytest.approx(0.25)
+    assert not record.notify
+
+
+def test_unavailable_extra_data_is_inconclusive_not_a_crash() -> None:
+    record = decide(DecisionMaker(POLICY, Reader({}, fail=True)), [hyp("payment-service", 0.5)])
+    assert record.investigations[0].outcome == "inconclusive"
+    assert record.probability == 0.5
+
+
+def test_weak_evidence_means_wait() -> None:
+    record = decide(DecisionMaker(POLICY, Reader({})), [hyp("payment-service", 0.15)])
+    assert record.action is Action.WAIT
+
+
+def test_two_close_suspects_trigger_collection_on_both() -> None:
+    reader = Reader(
+        {"payments-db": {"memory_slope_mb_min": 30.0}, "payment-api": {"error_rate": 0.0}}
+    )
+    record = decide(
+        DecisionMaker(POLICY, reader), [hyp("payment-api", 0.62), hyp("payments-db", 0.6)]
+    )
+    assert reader.calls == ["payment-api", "payments-db"]
+    assert record.target == "payments-db"  # confirmed suspect overtakes the other
+    assert record.action is Action.ALERT
+
+
+def test_business_rule_high_severity_always_alerts() -> None:
+    reader = Reader({})
+    record = decide(
+        DecisionMaker(POLICY, reader), [hyp("payment-service", 0.1)], [incident(Severity.HIGH)]
+    )
+    assert record.action is Action.ALERT
+    assert "regle metier" in record.reason
+    assert reader.calls == []
+
+
+def test_same_alert_is_not_repeated_within_the_window() -> None:
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    first = decide(maker, [hyp("payments-db", 0.95)])
+    clock.now += 60
+    again = decide(maker, [hyp("payments-db", 0.95)])
+    clock.now += POLICY.realert_after_seconds
+    later = decide(maker, [hyp("payments-db", 0.95)])
+    assert (first.notify, again.notify, later.notify) == (True, False, True)
+
+
+def test_no_hypothesis_no_decision() -> None:
+    assert asyncio.run(DecisionMaker(POLICY).decide([], [])) is None
+
+
+def test_scores_and_ambiguity() -> None:
+    assert ambiguity([hyp("a", 0.5)]) == pytest.approx(1)
+    assert ambiguity([hyp("a", 0.95)]) == pytest.approx(0.1)
+    assert ambiguity([hyp("a", 0.6), hyp("b", 0.6)]) == pytest.approx(1)
+    scores = score_actions(0.92, 0.16, POLICY)
+    assert max(scores, key=lambda a: scores[a]) is Action.ALERT
+    scores = score_actions(0.5, 1.0, POLICY)
+    assert max(scores, key=lambda a: scores[a]) is Action.COLLECT_MORE
+
+
+def hyp_with(service: str, p: float, *categories: str) -> Hypothesis:
+    evidence = tuple(Evidence("own_symptom", service, c, 0.5, "sur le service") for c in categories)
+    return Hypothesis(service, p, evidence)
+
+
+def test_new_kind_of_symptom_is_alerted_even_after_a_recent_alert() -> None:
+    """Seen live: a false CPU alert on payment-service hid the real memory fault after it."""
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    first = decide(maker, [hyp_with("payment-service", 0.9, "cpu_pressure")])
+    clock.now += 90
+    same = decide(maker, [hyp_with("payment-service", 0.9, "cpu_pressure")])
+    clock.now += 90
+    memory = decide(maker, [hyp_with("payment-service", 0.9, "cpu_pressure", "memory_pressure")])
+    assert (first.notify, same.notify, memory.notify) == (True, False, True)
+    assert "nouveau symptome : memory_pressure" in memory.reason
+
+
+def test_clearly_rising_probability_is_alerted_again() -> None:
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    decide(maker, [hyp_with("payment-service", 0.75, "error_rate")])
+    clock.now += 60
+    slightly = decide(maker, [hyp_with("payment-service", 0.8, "error_rate")])
+    clock.now += 60
+    clearly = decide(maker, [hyp_with("payment-service", 0.93, "error_rate")])
+    assert (slightly.notify, clearly.notify) == (False, True)
+    assert "probabilite en hausse" in clearly.reason
+
+
+def test_business_rule_names_the_newest_incident_when_severity_is_equal() -> None:
+    """Seen live (20:10:36): the tail of an earlier latency fault (HIGH, seen 3 times) was
+    named instead of the new error-rate incident (HIGH, seen 2 times)."""
+    old_latency = Incident(
+        "INC-old",
+        "payment-service:local:latency",
+        "payment-service",
+        "local",
+        Category.LATENCY,
+        100.0,
+        200.0,
+        3,
+        Severity.HIGH,
+        frozenset({"slo", "statistical"}),
+        {},
+    )
+    new_errors = Incident(
+        "INC-new",
+        "payment-service:local:error_rate",
+        "payment-service",
+        "local",
+        Category.ERROR_RATE,
+        180.0,
+        200.0,
+        2,
+        Severity.HIGH,
+        frozenset({"slo"}),
+        {},
+    )
+    for incidents in ([old_latency, new_errors], [new_errors, old_latency]):  # order-proof
+        record = decide(DecisionMaker(POLICY, Reader({})), [hyp("payment-service", 0.7)], incidents)
+        assert "incident error_rate de gravite HIGH" in record.reason
+
+
+def test_rising_severity_is_alerted_again() -> None:
+    """Seen live on fraud-api (14:42-14:43): error_rate alerted MEDIUM (slow-burn), then the same
+    incident became HIGH (fast-burn) and the orchestrator was left with a P2 alert."""
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    first = decide(maker, [hyp_with("payment-service", 0.9, "error_rate")], [incident()])
+    clock.now += 30
+    worse = decide(
+        maker, [hyp_with("payment-service", 0.5, "error_rate")], [incident(Severity.HIGH)]
+    )
+    clock.now += 30
+    still = decide(
+        maker, [hyp_with("payment-service", 0.5, "error_rate")], [incident(Severity.HIGH)]
+    )
+    assert (first.notify, worse.notify, still.notify) == (True, True, False)
+    assert "gravite en hausse (error_rate MEDIUM -> HIGH)" in worse.reason
+
+
+def test_rising_severity_is_seen_even_after_another_high_alert() -> None:
+    """Seen live on fraud-api (15:15 -> 15:21): a HIGH outage alert (readiness) hid that the
+    error rate, alerted MEDIUM at 15:20:34, became HIGH at 15:21:04."""
+
+    def on_fraud(category: Category, severity: Severity, opened: float) -> Incident:
+        return Incident(
+            f"INC-{category}",
+            f"fraud-api:local:{category}",
+            "fraud-api",
+            "local",
+            category,
+            opened,
+            opened,
+            1,
+            severity,
+            frozenset({"slo"}),
+            {},
+        )
+
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    outage = decide(
+        maker,
+        [hyp_with("fraud-api", 0.6, "readiness")],
+        [on_fraud(Category.READINESS, Severity.HIGH, 0)],
+    )
+    clock.now += 300
+    medium = decide(
+        maker,
+        [hyp_with("fraud-api", 0.8, "readiness", "error_rate")],
+        [on_fraud(Category.ERROR_RATE, Severity.MEDIUM, 300)],
+    )
+    clock.now += 30
+    high = decide(
+        maker,
+        [hyp_with("fraud-api", 0.8, "readiness", "error_rate")],
+        [on_fraud(Category.ERROR_RATE, Severity.HIGH, 300)],
+    )
+    assert (outage.notify, medium.notify, high.notify) == (True, True, True)
+    assert "gravite en hausse (error_rate MEDIUM -> HIGH)" in high.reason
+
+
+def chain_incident(
+    service: str, category: Category = Category.LATENCY, opened: float = 0
+) -> Incident:
+    return Incident(
+        f"INC-{service}",
+        f"{service}:local:{category}",
+        service,
+        "local",
+        category,
+        opened,
+        opened,
+        1,
+        Severity.HIGH,
+        frozenset({"slo"}),
+        {},
+    )
+
+
+DB_BLAMED = Hypothesis(
+    "payments-db",
+    0.61,
+    (
+        Evidence(
+            "dependent_symptom",
+            "payment-service",
+            "latency",
+            0.35,
+            "payment-service depend de payments-db",
+        ),
+        Evidence("own_symptom", "payments-db", "latency", 0.4, "sur le service"),
+    ),
+)
+
+
+def test_business_rule_alerts_the_probable_origin_not_the_victim() -> None:
+    """Seen live (15:55): the database was slow, reasoning ranked payments-db first (0.61),
+    but the HIGH-severity rule alerted payment-service, the victim."""
+    record = decide(
+        DecisionMaker(POLICY, Reader({})),
+        [DB_BLAMED, hyp_with("payment-service", 0.4, "latency")],
+        # As live: both HIGH, the victim's incident being the one the rule picks first.
+        [chain_incident("payment-service", opened=10), chain_incident("payments-db")],
+    )
+    assert record.target == "payments-db"
+    assert "sur payment-service ; origine probable payments-db" in record.reason
+
+
+def test_business_rule_keeps_its_service_when_reasoning_does_not_explain_it() -> None:
+    unrelated = hyp_with("payments-db", 0.7, "memory_pressure")  # no link to the incident
+    record = decide(
+        DecisionMaker(POLICY, Reader({})),
+        [unrelated],
+        [chain_incident("payment-service")],
+    )
+    assert record.target == "payment-service"
+    assert "origine probable" not in record.reason
+
+
+def test_new_incident_after_the_last_alert_is_alerted_again() -> None:
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    old = chain_incident("payment-service", opened=clock.now)
+    first = decide(maker, [hyp_with("payment-service", 0.4, "latency")], [old])
+    clock.now += 720  # within the 15-min reminder, but a new incident has been opened
+    new = Incident(
+        "INC-new",
+        old.signature,
+        "payment-service",
+        "local",
+        Category.LATENCY,
+        clock.now,
+        clock.now,
+        1,
+        Severity.HIGH,
+        frozenset({"slo"}),
+        {},
+    )
+    again = decide(maker, [hyp_with("payment-service", 0.4, "latency")], [new])
+    assert (first.notify, again.notify) == (True, True)
+    assert "nouvel incident (latency)" in again.reason
+
+
+def test_business_rule_alerts_the_origin_two_hops_away() -> None:
+    """checkout-api -> payment-service -> payments-db, slow database: the HIGH incident picked
+    first may be the checkout's, two hops above the origin."""
+    db_blamed = Hypothesis(
+        "payments-db",
+        0.61,
+        (
+            Evidence("dependent_symptom", "payment-service", "latency", 0.35, "depend de"),
+            Evidence("own_symptom", "payments-db", "latency", 0.4, "sur le service"),
+        ),
+    )
+    record = decide(
+        DecisionMaker(POLICY, Reader({})),
+        [db_blamed, hyp_with("payment-service", 0.48, "latency")],
+        [
+            chain_incident("checkout-api", opened=20),
+            chain_incident("payment-service", opened=10),
+            chain_incident("payments-db"),
+        ],
+    )
+    assert record.target == "payments-db"
+    assert "sur checkout-api ; origine probable payments-db" in record.reason
+
+
+def payment_first_cycle() -> list[Hypothesis]:
+    """Only the caller is measured sick yet; its dependency is suspected, not seen."""
+    return [
+        hyp_with("payment-service", 0.4, "latency"),
+        Hypothesis(
+            "payments-db",
+            0.35,
+            (Evidence("dependent_symptom", "payment-service", "latency", 0.35, "depend de"),),
+        ),
+    ]
+
+
+def test_live_case_waits_one_cycle_then_alerts_the_origin() -> None:
+    """Seen live at 10:38: the first alert went to payment-service, 30 s before payments-db
+    was measured sick. Now the agent waits that cycle and alerts the origin directly."""
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    payment = chain_incident("payment-service", opened=clock.now)
+    first = decide(maker, payment_first_cycle(), [payment])
+    assert first.action is Action.WAIT and not first.notify
+    assert "attente d'un cycle : payments-db" in first.reason
+
+    clock.now += 30  # next cycle: the database is now measured slow too
+    db = chain_incident("payments-db", opened=clock.now)
+    db_blamed = Hypothesis(
+        "payments-db",
+        0.61,
+        (
+            Evidence("dependent_symptom", "payment-service", "latency", 0.35, "depend de"),
+            Evidence("own_symptom", "payments-db", "latency", 0.4, "sur le service"),
+        ),
+    )
+    second = decide(maker, [db_blamed, hyp_with("payment-service", 0.4, "latency")], [payment, db])
+    assert (second.action, second.target, second.notify) == (Action.ALERT, "payments-db", True)
+
+
+def test_caller_really_at_fault_is_alerted_after_one_cycle() -> None:
+    clock = Clock()
+    maker = DecisionMaker(POLICY, Reader({}), clock=clock)
+    payment = chain_incident("payment-service", opened=clock.now)
+    assert decide(maker, payment_first_cycle(), [payment]).action is Action.WAIT
+    clock.now += 30  # the database is still fine: the payment service is the origin
+    later = decide(maker, payment_first_cycle(), [payment])
+    assert (later.action, later.target, later.notify) == (Action.ALERT, "payment-service", True)
+
+
+def test_dead_service_is_alerted_at_once() -> None:
+    """readiness does not come from a dependency: no grace period."""
+    clock = Clock()
+    dead = chain_incident("payment-service", Category.READINESS, opened=clock.now)
+    blamed = Hypothesis(
+        "payments-db",
+        0.35,
+        (Evidence("dependent_symptom", "payment-service", "readiness", 0.35, "depend de"),),
+    )
+    record = decide(
+        DecisionMaker(POLICY, Reader({}), clock=clock),
+        [hyp_with("payment-service", 0.6, "readiness"), blamed],
+        [dead],
+    )
+    assert (record.action, record.target) == (Action.ALERT, "payment-service")

@@ -1,0 +1,16 @@
+# Dependencies of Agent 1 (Monitoring & Anomaly Detection).
+pydantic>=2.9,<3
+pydantic-settings>=2.6,<3
+httpx>=0.28,<1
+PyYAML>=6,<7
+drain3>=0.9.11,<1
+psutil>=5.9,<8
+# Tests and static checks.
+pytest>=8.3,<10
+jsonschema>=4.23,<5
+ruff>=0.11,<1
+mypy>=1.15,<3
+types-PyYAML
+# Optional forecast detector (Amazon Chronos, off by default, about 350 MB of RAM):
+# chronos-forecasting>=2.3,<3
+# torch>=2.6,<3
