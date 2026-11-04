@@ -1,0 +1,3 @@
+# Local output of the agent and of its tests, and the optional Gemini key.
+runs/
+.env
