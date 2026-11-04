@@ -12,7 +12,7 @@ $env:Path = (Join-Path (Get-Location).Path '.venv-agent6\Scripts') + [IO.Path]::
 .\.venv-agent6\Scripts\python.exe -m mypy agent6_mlops_lifecycle
 ```
 
-The November 4 publication check passed **468 tests**, with seven existing Pydantic deprecation warnings in the original API schema. Agent 6 strict type checking passed for **97 source files**. Ruff and the installed dependency compatibility check also passed. Warnings identify future schema migration work; they were not hidden or counted as failures. Test counts can increase as the implementation evolves.
+The November 4 publication check passed **470 tests**, including regressions for the saved model's optional missing features, with seven existing Pydantic deprecation warnings in the original API schema. Agent 6 strict type checking passed for **98 source files**, targeting both Linux and Windows. Ruff and the installed dependency compatibility check also passed. Warnings identify future schema migration work; they were not hidden or counted as failures. Test counts can increase as the implementation evolves.
 
 ## Real saved-model and autonomous-training acceptance
 

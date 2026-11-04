@@ -1,5 +1,7 @@
 # Existing checked-in artifacts were serialized with these versions.
 scikit-learn==1.6.1
 imbalanced-learn==0.13.0
+# The saved feature engineering expects pandas 2.x missing/string semantics.
+pandas>=2.3,<3
 mlflow>=3.5,<4
 sqlalchemy>=2.0,<2.1
