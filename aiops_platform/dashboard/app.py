@@ -9,6 +9,7 @@ Operators authenticate with a bearer token mapped to a subject and roles in
 request. (A production deployment puts SSO/OIDC in front of this.)
 """
 
+import hashlib
 import hmac
 import mimetypes
 from pathlib import Path
@@ -16,7 +17,7 @@ from typing import Any, Protocol
 
 import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import generate_latest
 from pydantic import BaseModel, Field
@@ -29,6 +30,19 @@ WEB = Path(__file__).with_name("web")
 # Some hosts (Windows, slim images) have no MIME entry for the self-hosted font.
 mimetypes.add_type("font/woff2", ".woff2")
 DEFAULT_OPERATORS = Path(__file__).with_name("operators.example.yaml")
+# Browsers may reuse a cached stylesheet or script without asking the server, so a UI
+# update could pair new HTML with old CSS. The page names each asset by content hash,
+# and every static response must be revalidated.
+NO_CACHE = {"Cache-Control": "no-cache"}
+VERSIONED_ASSETS = ("style.css", "app.js")
+
+
+def _index_html() -> str:
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    for name in VERSIONED_ASSETS:
+        digest = hashlib.sha256((WEB / name).read_bytes()).hexdigest()[:12]
+        html = html.replace(f'"/static/{name}"', f'"/static/{name}?v={digest}"')
+    return html
 
 
 class OrchestratorPort(Protocol):
@@ -106,8 +120,15 @@ def create_app(
         raise HTTPException(401, "unknown operator token")
 
     @app.get("/", include_in_schema=False)
-    async def index() -> FileResponse:
-        return FileResponse(WEB / "index.html")
+    async def index() -> HTMLResponse:
+        return HTMLResponse(_index_html(), headers=NO_CACHE)
+
+    @app.middleware("http")
+    async def revalidate_static(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers.update(NO_CACHE)
+        return response
 
     app.mount("/static", StaticFiles(directory=WEB), name="static")
 
