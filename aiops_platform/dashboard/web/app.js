@@ -57,6 +57,8 @@ const SCENARIO_LABEL = {
   memory_leak_after_deploy: "Memory leak after deploy",
   cpu_load_spike: "CPU load spike",
   model_drift_check: "Model drift check",
+  release_v28_failing_test: "Release v2.8 (failing test)",
+  release_v28_fixed: "Release v2.8 (fixed)",
   reset: "Reset cluster",
 };
 const RISK_LABEL = {
@@ -776,7 +778,7 @@ function agentsBlock(context, model) {
   const results = context.agent_results || [];
   if (!results.length) return null;
   return h("section", { class: "sheet-block" },
-    h("h2", {}, "Agent results", h("span", { class: "aside", text: `${results.length} result${results.length > 1 ? "s" : ""} · ${(context.evidence_refs || []).length} evidence records` })),
+    h("h2", {}, "Agent results", h("span", { class: "aside", text: `${results.length} result${results.length > 1 ? "s" : ""} · ${(context.evidence_refs || []).length} evidence record${(context.evidence_refs || []).length === 1 ? "" : "s"}` })),
     h("ul", { class: "agents" }, results.map((r) => {
       const [name, role] = AGENTS[r.agent_id] || [r.agent_id, ""];
       const phase = model.resultPhase.get(r.task_id);

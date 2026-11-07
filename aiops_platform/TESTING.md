@@ -2,6 +2,7 @@
 
 Five levels, from seconds to a full distributed run. All commands from the
 repository root, with the environment from [README.md](README.md#run-it).
+For every use case step by step, and a script for a live demo, see [DEMO.md](DEMO.md).
 
 | Level | What it proves | Time |
 |---|---|---|

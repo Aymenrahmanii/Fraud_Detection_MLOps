@@ -14,15 +14,25 @@ import json
 import logging
 import os
 import tempfile
-import time
+import warnings
 from pathlib import Path
 
 from aiops_platform.context.service import Principal
 from aiops_platform.contracts.enums import Environment
 from aiops_platform.experiments.metrics import evaluate_workflows
 from aiops_platform.hitl.service import Operator
+from aiops_platform.orchestrator.graph import approval_ttl_seconds
 from aiops_platform.runtime import Platform
-from aiops_platform.sim.scenarios import CHECKOUT, PAYMENT, base_cluster, cpu_load_spike, memory_leak_after_deploy
+from aiops_platform.sim.scenarios import (
+    CHECKOUT,
+    PAYMENT,
+    base_cluster,
+    cpu_load_spike,
+    memory_leak_after_deploy,
+    model_check_request,
+    release_assessment,
+    release_v28_request,
+)
 
 SRE = Operator(subject="alice@sre", roles=frozenset({"sre"}))
 RELEASE = Operator(subject="rita@release", roles=frozenset({"release-manager"}))
@@ -89,16 +99,7 @@ async def run_auto(workdir: Path) -> dict:
         say(f"   cluster: checkout-api replicas {staging.cluster.deployment('checkout-api', 'prod').replicas}")
 
         say("\n[3] Release v2.8 with a failing test (Agent 3 gate)")
-        blocked = {
-            "assessment_id": "REL-DEMO-1",
-            "commit": "c0ffee1",
-            "artifact": {"image": "registry.local/payment-service:v2.8"},
-            "tests": {"total": 124, "passed": 123, "failed": 1, "skipped": 0, "coverage_pct": 86.0},
-            "quality": {"gate": "PASSED"},
-            "security": {},
-            "decision": "BLOCK",
-            "blocking_reasons": ["1 failing test"],
-        }
+        blocked = release_assessment(False, "REL-DEMO-1", "c0ffee1")
         await prod.orchestrator.start_release(
             release_id="REL-payment-v2.8-a",
             service={"service_id": "payment-service", "namespace": "prod", "version": "v2.6"},
@@ -111,14 +112,7 @@ async def run_auto(workdir: Path) -> dict:
         await show(prod, "REL-payment-v2.8-a")
 
         say("\n[4] Release v2.8 after the fix (Agent 3 ALLOW -> deploy with approval -> verify)")
-        allowed = {
-            **blocked,
-            "assessment_id": "REL-DEMO-2",
-            "commit": "c0ffee2",
-            "decision": "ALLOW",
-            "blocking_reasons": [],
-            "tests": {"total": 124, "passed": 124, "failed": 0, "skipped": 0, "coverage_pct": 87.3},
-        }
+        allowed = release_assessment(True, "REL-DEMO-2", "c0ffee2")
         await prod.orchestrator.start_release(
             release_id="REL-payment-v2.8-b",
             service={"service_id": "payment-service", "namespace": "prod", "version": "v2.6"},
@@ -180,13 +174,20 @@ async def serve(workdir: Path, port: int) -> None:
         return await platform.watcher.tick()
 
     async def model_check():
-        incident = f"MLOPS-machine-failure-{int(time.time())}"
-        await platform.orchestrator.start_model_check(
-            check_id=incident,
-            service={"service_id": "machine-failure", "namespace": "ml", "version": "v1"},
-            environment="production",
-        )
-        return [incident]
+        request = model_check_request()
+        await platform.orchestrator.start_model_check(**request)
+        return [request["check_id"]]
+
+    async def release(fixed: bool) -> list[str]:
+        request = release_v28_request(platform.cluster, fixed)
+        await platform.orchestrator.start_release(**request)
+        return [request["release_id"]]
+
+    async def release_failing_test():
+        return await release(False)
+
+    async def release_fixed():
+        return await release(True)
 
     app = create_app(
         context=platform.context,
@@ -196,6 +197,8 @@ async def serve(workdir: Path, port: int) -> None:
             "memory_leak_after_deploy": inject_leak,
             "cpu_load_spike": inject_cpu,
             "model_drift_check": model_check,
+            "release_v28_failing_test": release_failing_test,
+            "release_v28_fixed": release_fixed,
         },
     )
 
@@ -208,7 +211,10 @@ async def serve(workdir: Path, port: int) -> None:
                     platform.watcher.resolve(incident.service.service_id)
 
     task = asyncio.create_task(heartbeat())
-    say(f"Dashboard: http://127.0.0.1:{port}  (tokens: dev-sre-token, dev-release-token, dev-ml-token)")
+    say(
+        f"Dashboard: http://127.0.0.1:{port}  (tokens: dev-sre-token, dev-release-token, dev-ml-token, dev-viewer-token)"
+    )
+    say(f"Approvals expire after {approval_ttl_seconds()} s (--approval-ttl to change)")
     config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
     try:
         await uvicorn.Server(config).serve()
@@ -224,8 +230,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8090)
     parser.add_argument("--workdir", type=Path, help="state directory (default: a temporary directory)")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--approval-ttl",
+        type=int,
+        metavar="SECONDS",
+        help="how long a human has to decide (default 600, at least 30); expired approvals are re-requested once",
+    )
     args = parser.parse_args(argv)
+    if args.approval_ttl:
+        os.environ["AIOPS_APPROVAL_TTL_SECONDS"] = str(args.approval_ttl)
     os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
+    # Third-party training chatter (sklearn solver options, MLflow schema hints) is not demo output.
+    warnings.filterwarnings("ignore", module=r"(sklearn|mlflow)(\.|$)")
     logging.basicConfig(level=logging.INFO if args.verbose else logging.ERROR)
     for noisy in ("mlflow", "alembic", "httpx"):
         logging.getLogger(noisy).setLevel(logging.ERROR)
