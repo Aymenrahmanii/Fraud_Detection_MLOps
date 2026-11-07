@@ -71,6 +71,11 @@ async def test_operator_approves_from_the_dashboard(setup):
     detail = (await client.get(f"/api/incidents/{incident}", headers=auth("sre-token"))).json()
     assert detail["workflow"]["stage"] == "RESOLVED"
     assert detail["audit_chain_valid"] is True
+    # The phase views: Agent 1's detection is exposed, the opaque operation blob is not.
+    assert detail["workflow"]["detection"]["payload"]["signals"]
+    results = detail["context"]["agent_results"]
+    assert any("patch" in r["payload"] for r in results)
+    assert all("operation" not in r["payload"] for r in results)
     assert any(
         a["action"] == "APPROVAL_APPROVED" and a["detail"]["approver_id"] == "alice@sre" for a in detail["audit"]
     )

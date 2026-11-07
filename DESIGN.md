@@ -256,7 +256,10 @@ A borderless table at 13px: uppercase label column heads over an ink rule, rows 
 ### Stage Rail (signature)
 Seven 14px square cells with 4px gaps, one per loop stage, identical on every register row. Empty: strong-rule outline. Done: solid ink. Now: 2px ink border with hatching. Waiting for a human: solid signal. Verified: solid green. Failed or escalated: solid signal. On a selected row the inks invert to paper. A legend under the register explains each cell.
 
-In the sheet header the rail is enlarged to a 7-column numbered strip between an ink top rule and a grey bottom rule: each step shows its number (800), stage name and time, and fills with the same state colour, with reversed text.
+In the sheet header the rail is enlarged to a 7-column numbered strip between an ink top rule and a grey bottom rule: each step shows its number (800), stage name and time, and fills with the same state colour, with reversed text. Each step is a tab (arrow keys, Home/End, Escape back to the overview) that opens its phase. The selected step carries a 2px inner frame: ink on paper cells, paper inset 5px on filled cells, so the state colour is never replaced.
+
+### Phase View
+Opened from the enlarged rail. An ink band repeats the phase number and name with Previous / Next / Overview. Below it: one sentence on what the phase does, a facts row (who, started to the millisecond, time in phase, record count), then one ruled output per agent result or decision, with no cards: a 15px/800 title with its event as a grey subtitle, a kv list of the typed output (hypotheses, patches and before/after states as tables, SLO checks as pass/fail tags), the evidence it cites, and a collapsed "Raw output" in a frame-paper mono box with a copy button. The phase ends with its hash-chained audit records; each opens to its full JSON. An open decision comes first in the Approve phase; while one is pending, every other phase carries a red one-line strip that leads to it.
 
 ### Loop Strip
 The frame-paper strip of seven stage buttons (number, uppercase name, 32px count) and four totals. A pressed stage reverses to ink; the stage that holds a waiting decision fills signal red. Zero counts drop to 600 grey. Resolved totals are green, escalated totals signal-ink.

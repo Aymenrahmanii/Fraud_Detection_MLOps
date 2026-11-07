@@ -163,23 +163,32 @@ def create_app(
             raise HTTPException(404, "incident not found") from exc
         workflow = await orchestrator.status(incident_id)
         trail = await context.audit_trail(viewer, incident_id)
+        context_json = ctx.model_dump(mode="json")
+        for result in context_json.get("agent_results", []):
+            # Same rule as the approvals view: the opaque operation blob stays server-side.
+            if isinstance(result.get("payload"), dict):
+                result["payload"].pop("operation", None)
         return {
-            "context": ctx.model_dump(mode="json"),
+            "context": context_json,
             "workflow": {
-                k: workflow.get(k)
-                for k in (
-                    "stage",
-                    "kind",
-                    "outcome",
-                    "selected",
-                    "policy",
-                    "consensus",
-                    "notes",
-                    "replans",
-                    "approval",
-                    "waiting",
-                    "done",
-                )
+                **{
+                    k: workflow.get(k)
+                    for k in (
+                        "stage",
+                        "kind",
+                        "outcome",
+                        "selected",
+                        "policy",
+                        "consensus",
+                        "notes",
+                        "replans",
+                        "approval",
+                        "waiting",
+                        "done",
+                    )
+                },
+                # Agent 1's detection travels as the workflow trigger, not as an agent result.
+                "detection": (workflow.get("results") or {}).get("monitoring"),
             },
             "audit": [
                 {

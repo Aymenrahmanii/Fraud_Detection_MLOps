@@ -384,6 +384,87 @@ textarea { width: 100%; min-height: 40px; resize: vertical; font-size: var(--t-b
 .form-message[data-tone="signal"] { color: var(--signal-ink); }
 .form-message[data-tone="ok"] { color: var(--ok); }
 
+/* ---- phases: the sheet's rail is the way into each stage --------------- */
+button.rail-step {
+  appearance: none; border: 0; border-right: 1px solid var(--rule); background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+button.rail-step:not([data-s]):hover, button.rail-step[data-s="now"]:hover { background-color: var(--paper-2); }
+button.rail-step:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.rail-step[aria-selected="true"], button.rail-step:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.rail-step:is([data-s="done"], [data-s="wait"], [data-s="ok"], [data-s="fail"]):is([aria-selected="true"], :focus-visible) {
+  outline-color: var(--paper-3); outline-offset: -5px;
+}
+.rail-step[aria-selected="true"] span { font-weight: 700; }
+.rail-hint { font-size: var(--t-small); color: var(--ink-3); padding: var(--s-2) var(--s-5); border-bottom: 1px solid var(--rule); }
+
+.phase-band {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap;
+  background: var(--ink); color: var(--paper); padding: var(--s-3) var(--s-5);
+}
+.phase-band h2 { font-size: var(--t-small); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; display: flex; gap: var(--s-2); }
+.phase-no { color: #c4c8c3; }
+.phase-nav { display: flex; gap: var(--s-4); }
+.phase-nav .link-button { display: inline-flex; align-items: center; gap: var(--s-1); }
+.link-button:disabled { opacity: 0.4; cursor: default; }
+.phase-body { padding: var(--s-4) var(--s-5) var(--s-5); }
+.phase-body > .lead { color: var(--ink-2); }
+.phase-body > .decision { margin: var(--s-4) calc(var(--s-5) * -1) 0; }
+.phase-facts { margin-bottom: var(--s-4); }
+
+/* minmax(0, 1fr): long raw JSON lines scroll inside their box instead of widening the column. */
+.output { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--s-4) 0; border-top: 1px solid var(--rule); min-width: 0; }
+.phase-facts dd { font-variant-numeric: normal; }
+.output-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); }
+.output-head h3 { font-size: var(--t-body); font-weight: 800; }
+.output-head h3 small { display: block; font-size: var(--t-small); font-weight: 400; color: var(--ink-3); }
+.output-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); min-width: 0; }
+.output .kv { gap: var(--s-1) var(--s-4); }
+.rationale { font-size: var(--t-small); color: var(--ink-2); max-width: 70ch; }
+.sub { font-size: var(--t-small); font-weight: 700; margin-top: var(--s-2); }
+.inline-kv { display: inline-flex; flex-wrap: wrap; gap: 2px var(--s-3); }
+.kv code, .kv code.json { overflow-wrap: anywhere; }
+.evidence { display: grid; gap: 2px; font-size: var(--t-small); }
+.evidence li { display: flex; flex-wrap: wrap; gap: 2px var(--s-2); align-items: baseline; }
+.checks { display: grid; font-size: var(--t-small); max-width: 28rem; }
+.checks li { display: flex; justify-content: space-between; gap: var(--s-3); padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.raw-wrap { position: relative; }
+.raw-wrap .copy { position: absolute; top: var(--s-1); right: var(--s-1); background: var(--paper-2); }
+.raw {
+  margin: 0; padding: var(--s-3); padding-right: var(--s-6); background: var(--paper-2);
+  font: 400 var(--t-small)/1.5 var(--mono); white-space: pre; overflow: auto; max-height: 320px;
+}
+.raw-details > summary { margin-top: var(--s-1); }
+
+.records { display: grid; font-size: var(--t-small); }
+.records li { border-bottom: 1px solid var(--rule); }
+.records li:last-child { border-bottom: 0; }
+.records summary {
+  display: grid; grid-template-columns: 7rem 8rem minmax(0, 1fr); gap: var(--s-3);
+  padding: 6px 0; cursor: pointer; list-style: none;
+}
+.records summary::-webkit-details-marker { display: none; }
+.records summary:hover .what { text-decoration: underline; text-underline-offset: 3px; }
+.records details[open] > summary { font-weight: 600; }
+.records time { color: var(--ink-3); }
+.records .who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records .what { overflow-wrap: anywhere; }
+.records .what small { color: var(--ink-3); font-size: var(--t-small); }
+.records li[data-tone="signal"] .what { color: var(--signal-ink); font-weight: 600; }
+.records li[data-tone="ok"] .what { color: var(--ok); font-weight: 600; }
+.records .raw { margin-bottom: var(--s-2); }
+
+.pending-strip {
+  display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+  background: var(--signal); color: #fff; padding: var(--s-2) var(--s-5); font-size: var(--t-small);
+}
+.pending-strip strong { font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.pending-strip .countdown { font-size: var(--t-small); margin-right: auto; }
+.button.on-signal { border-color: #fff; color: #fff; background: transparent; }
+.button.on-signal:hover { background: rgba(255, 255, 255, 0.14); }
+.phase-link { display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-1); font-weight: 600; color: var(--ink); }
+.phase-link .icon { width: 12px; height: 12px; }
+
 /* ---- buttons ---------------------------------------------------------- */
 .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
@@ -456,6 +537,10 @@ textarea { width: 100%; min-height: 40px; resize: vertical; font-size: var(--t-b
   .decision-band .permission { order: 3; flex-basis: 100%; margin-left: 0; }
   .decide-form { grid-template-columns: minmax(0, 1fr) auto; }
   .decide-comment { grid-column: 1 / -1; }
+  .phase-body, .phase-band, .pending-strip, .rail-hint { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .phase-body > .decision { margin-left: calc(var(--s-4) * -1); margin-right: calc(var(--s-4) * -1); }
+  .records summary { grid-template-columns: 6.5rem minmax(0, 1fr); }
+  .records .what { grid-column: 1 / -1; }
   .agent { grid-template-columns: 1fr auto; }
   .agent-summary { grid-column: 1 / -1; }
   .timeline li { grid-template-columns: 4.5rem 1fr; }

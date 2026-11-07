@@ -71,6 +71,7 @@ const state = {
   detail: null, sheetKey: "", lastOk: 0, error: null,
   comments: {}, messages: {}, knownIds: null, follow: false, busy: false,
   expanded: new Set(),
+  phase: null, /* null: overview of the selected workflow; 0-6: one phase of its loop */
 };
 try { state.token = sessionStorage.getItem("aiops-token") || ""; } catch (_) { /* storage blocked */ }
 
@@ -137,7 +138,19 @@ function shortImage(value) {
 }
 const pct = (x) => (typeof x === "number" ? `${Math.round(x * 100)}%` : "–");
 const num = (x, digits = 2) => (typeof x === "number" ? x.toFixed(digits) : "–");
-const humanize = (s) => String(s || "").toLowerCase().replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase());
+const ACRONYM = /\b(hitl|rca|slo|cpu|mlops|api|ttl|uid|id|p95|k8s|ml)\b/g;
+const humanize = (s) => String(s || "").toLowerCase().replaceAll("_", " ")
+  .replace(ACRONYM, (m) => m.toUpperCase()).replace(/^./, (c) => c.toUpperCase());
+function clockMs(iso) {
+  if (!iso) return "";
+  return `${clock(iso)}.${String(new Date(iso).getMilliseconds()).padStart(3, "0")}`;
+}
+function elapsed(seconds) {
+  if (seconds === null || seconds === undefined) return "–";
+  if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  return duration(new Date(0).toISOString(), new Date(seconds * 1000).toISOString());
+}
 
 /* ---- API ------------------------------------------------------------------ */
 async function api(path, options = {}) {
@@ -317,7 +330,7 @@ function onRowKey(event) {
   if (next) { event.preventDefault(); select(next.dataset.id, false); requestAnimationFrame(() => document.querySelector(`#rows tr[data-id="${CSS.escape(next.dataset.id)}"]`)?.focus()); }
 }
 function select(id, focusSheet) {
-  if (state.selected !== id) { state.selected = id; state.sheetKey = ""; state.detail = null; }
+  if (state.selected !== id) { state.selected = id; state.sheetKey = ""; state.detail = null; state.phase = null; }
   history.replaceState(null, "", `#${encodeURIComponent(id)}`);
   renderRegister();
   renderSheetLoading();
@@ -358,18 +371,52 @@ async function loadDetail() {
   }
 }
 
-function stageTimes(audit) {
-  const times = {};
-  const mark = (i, at) => { if (i !== undefined && !(i in times)) times[i] = at; };
-  for (const row of audit) {
-    const d = row.detail || {};
-    if (row.action === "INCIDENT_OPENED") mark(0, row.at);
-    else if (row.action === "INCIDENT_UPDATED" && d.status) mark(d.status in TERMINAL ? 6 : STAGE_OF[d.status], row.at);
-    else if (row.action === "DECISION_RECORDED" && ["CONSENSUS", "POLICY", "RELEASE_GATE"].includes(d.stage)) mark(2, row.at);
-    else if (row.action.startsWith("APPROVAL_")) mark(3, row.at);
-    else if (row.action === "ACTION_UPDATED" && d.execution_status === "EXECUTING") mark(4, row.at);
+/* ---- phases: every audit record belongs to one stage of the loop -------------------------- */
+const RESULT_PHASE = { DEPLOYMENT_PLAN_PREPARED: 2, ACTION_COMPLETED: 4, RECOVERY_VERIFIED: 5 };
+const DECISION_PHASE = { CONSENSUS: 2, POLICY: 2, RELEASE_GATE: 2, HITL: 3, CLOSE: 6 };
+function phaseOf(row, current) {
+  const d = row.detail || {};
+  switch (row.action) {
+    case "INCIDENT_OPENED": return 0;
+    case "INCIDENT_UPDATED":
+      if (!d.status) return current;
+      if (d.status in TERMINAL) return 6;
+      return d.status in STAGE_OF ? STAGE_OF[d.status] : current;
+    case "ACTION_RECORDED": return 2;
+    case "DECISION_RECORDED": return DECISION_PHASE[d.stage] ?? current;
+    case "ACTION_UPDATED":
+      if (d.execution_status === "EXECUTING") return 4;
+      if (d.execution_status === "VERIFIED") return 5;
+      if (d.policy_result) return 2;
+      return current;
+    case "AGENT_RESULT_APPENDED": return RESULT_PHASE[String(d.type || "").split(":").pop()] ?? current;
+    default: return row.action.startsWith("APPROVAL_") ? 3 : current;
   }
-  return times;
+}
+function phaseModel(audit) {
+  const rows = Array.from({ length: 7 }, () => []);
+  const resultPhase = new Map();
+  let current = 0;
+  for (const row of audit) {
+    current = phaseOf(row, current);
+    rows[current].push(row);
+    if (row.action === "AGENT_RESULT_APPENDED" && row.detail?.task_id) resultPhase.set(row.detail.task_id, current);
+  }
+  return { rows, resultPhase, times: rows.map((r) => r[0]?.at || null) };
+}
+function openPhase(i) {
+  state.phase = i;
+  state.sheetKey = "";
+  renderSheet();
+  document.getElementById(`phase-tab-${i ?? 0}`)?.focus({ preventScroll: true });
+}
+function onPhaseKey(event) {
+  const i = Number(event.currentTarget.dataset.phase);
+  const next = { ArrowRight: Math.min(6, i + 1), ArrowLeft: Math.max(0, i - 1), Home: 0, End: 6 }[event.key];
+  if (event.key === "Escape") { event.preventDefault(); openPhase(null); return; }
+  if (next === undefined) return;
+  event.preventDefault();
+  openPhase(next);
 }
 
 function renderSheet() {
@@ -378,7 +425,7 @@ function renderSheet() {
   const context = detail.context;
   const workflow = detail.workflow || {};
   const approval = state.approvals.find((a) => a.incident_id === context.incident_id && a.state === "WAITING_FOR_HUMAN");
-  const key = JSON.stringify([detail, approval, state.messages[context.incident_id]]);
+  const key = JSON.stringify([detail, approval, state.messages[context.incident_id], state.phase]);
   if (key === state.sheetKey) return;
   state.sheetKey = key;
 
@@ -387,10 +434,14 @@ function renderSheet() {
   const typing = active && active.id === "decision-comment";
   const caret = typing ? [active.selectionStart, active.selectionEnd] : null;
 
-  const times = stageTimes(detail.audit || []);
-  const reached = new Set(Object.keys(times).map(Number));
+  const model = phaseModel(detail.audit || []);
+  const reached = new Set(model.rows.flatMap((r, i) => (r.length ? [i] : [])));
   const cells = railStates(context.status, reached);
   const service = context.service || {};
+  /* An escalated workflow stays open for humans (no closed_at): time it to the escalation. */
+  const endedAt = context.closed_at || (TERMINAL[context.status] ? model.times[6] : null);
+  const phase = state.phase;
+  const view = { context, workflow, detail, approval, model };
 
   sheet.replaceChildren(...[
     h("div", { class: "sheet-head" },
@@ -403,17 +454,31 @@ function renderSheet() {
         metaItem("Status", STATUS_LABEL[context.status] || humanize(context.status)),
         metaItem("Environment", context.environment),
         metaItem("Priority", `${context.priority} · ${String(context.severity).toLowerCase()}`),
-        metaItem(context.closed_at ? "Took" : "Open for", duration(context.opened_at, context.closed_at)))),
-    h("div", { class: "rail-large", role: "list", "aria-label": "Position in the closed loop" },
-      STAGES.map((stage, i) => h("div", { class: "rail-step", role: "listitem", "data-s": cells[i] || null },
-        h("b", { text: stage.no }), h("span", { text: stage.name }), h("time", { text: times[i] ? clock(times[i]) : "–" })))),
+        metaItem(endedAt ? (context.status === "ESCALATED" ? "Escalated after" : "Took") : "Open for", duration(context.opened_at, endedAt)))),
+    h("div", { class: "rail-large", role: "tablist", "aria-label": "Phases of this workflow" },
+      STAGES.map((stage, i) => h("button", {
+        type: "button", role: "tab", class: "rail-step", id: `phase-tab-${i}`, "data-phase": i,
+        "data-s": cells[i] || null, "aria-selected": String(phase === i), "aria-controls": "phase-panel",
+        tabindex: (phase ?? 0) === i ? "0" : "-1",
+        onclick: () => openPhase(phase === i ? null : i), onkeydown: onPhaseKey,
+      }, h("b", { text: stage.no }), h("span", { text: stage.name }), h("time", { text: model.times[i] ? clock(model.times[i]) : "–" })))),
+    phase === null
+      ? h("p", { class: "rail-hint", text: "Select a phase to see exactly what happened in it: the agents involved, their output, timings and every record." })
+      : null,
     outcomeBlock(context, workflow, detail.audit || []),
-    approval ? decisionBlock(approval, context) : null,
-    diagnosisBlock(workflow),
-    candidatesBlock(workflow),
-    policyBlock(workflow, Boolean(approval)),
-    agentsBlock(context),
-    auditBlock(detail),
+    ...(phase === null
+      ? [
+        approval ? decisionBlock(approval, context) : null,
+        diagnosisBlock(workflow),
+        candidatesBlock(workflow),
+        policyBlock(workflow, Boolean(approval)),
+        agentsBlock(context, model),
+        auditBlock(detail),
+      ]
+      : [
+        approval && phase !== 3 ? pendingStrip(approval) : null,
+        phaseBlock(phase, view),
+      ]),
   ].filter(Boolean));
 
   if (typing) {
@@ -539,13 +604,7 @@ function decisionBlock(approval, context) {
         h("small", { text: [request.environment, plan?.target ? `${plan.target.namespace}/${plan.target.name} on ${plan.target.cluster_id}` : null].filter(Boolean).join(" · ") })),
       plan ? h("div", {},
         h("h3", { text: "Exact change Agent 4 will apply" }),
-        rows.length ? h("div", { class: "change" }, rows.map((r) => h("div", { class: "change-row" },
-          h("span", { class: "field-name", text: r.label }),
-          h("span", { class: "from mono" }, h("span", { class: "visually-hidden", text: "from " }), r.from),
-          h("span", { class: "to mono", title: typeof r.raw.value === "string" ? r.raw.value : JSON.stringify(r.raw.value) },
-            icon("arrow"), h("span", { class: "visually-hidden", text: "to " }), r.to)))) : h("p", { class: "muted", text: "No field changes." }),
-        preconditions.length ? h("p", { class: "preconditions", title: preconditions.map((p) => p[1]).join("\n") }, icon("check"),
-          h("span", { text: `Re-checked before apply: ${preconditions.map((p) => p[0]).join(", ")}` })) : null)
+        changeTable(rows), preconditionLine(preconditions))
         : h("div", {}, h("h3", { text: "Governance decision" }),
           h("p", { class: "lead", text: "No infrastructure change is attached: approving records the decision; nothing is executed." })),
       h("div", { class: "decision-grid" },
@@ -572,6 +631,7 @@ const SIGNAL = {
   latency_p95_ms: ["Latency p95", (v) => `${Math.round(v)} ms`],
   pod_restarts: ["Pod restarts", (v) => String(Math.round(v))],
   cpu_avg_pct: ["CPU average", (v) => `${num(v, 1)}%`],
+  cpu_percent: ["CPU used", (v) => `${num(v, 1)}%`],
 };
 function evidenceDetails(evidence, plan) {
   const signals = [];
@@ -669,19 +729,36 @@ function diagnosisBlock(workflow) {
       h("dt", { text: "Specialist agreement" }), h("dd", { text: pct(c.agreement) }),
       (c.conflicts || []).length ? [h("dt", { text: "Conflicts" }), h("dd", { text: c.conflicts.join("; ") })] : null));
 }
-function candidatesBlock(workflow) {
+function changeTable(rows) {
+  if (!rows.length) return h("p", { class: "muted", text: "No field changes." });
+  return h("div", { class: "change" }, rows.map((r) => h("div", { class: "change-row" },
+    h("span", { class: "field-name", text: r.label }),
+    h("span", { class: "from mono" }, h("span", { class: "visually-hidden", text: "from " }), r.from),
+    h("span", { class: "to mono", title: typeof r.raw.value === "string" ? r.raw.value : JSON.stringify(r.raw.value) },
+      icon("arrow"), h("span", { class: "visually-hidden", text: "to " }), r.to))));
+}
+function preconditionLine(preconditions) {
+  if (!preconditions.length) return null;
+  return h("p", { class: "preconditions", title: preconditions.map((p) => p[1]).join("\n") }, icon("check"),
+    h("span", { text: `Re-checked before apply: ${preconditions.map((p) => p[0]).join(", ")}` }));
+}
+function candidatesTable(workflow) {
   const candidates = workflow.consensus?.candidates || [];
   if (!candidates.length) return null;
   const selected = workflow.selected?.action_id;
+  return h("div", { class: "data-wrap" }, h("table", { class: "data" },
+    h("thead", {}, h("tr", {}, h("th", { text: "Action" }), h("th", { text: "Proposed by" }), h("th", { text: "Why" }), h("th", { class: "num", text: "Score" }))),
+    h("tbody", {}, candidates.map((c) => h("tr", { "data-selected": c.action_id === selected },
+      h("td", {}, humanize(c.type), c.action_id === selected ? h("div", { class: "tag", text: "selected" }) : null),
+      h("td", { text: (AGENTS[c.source_agent] || [c.source_agent])[0] }),
+      h("td", { class: "muted" }, longText(c.rationale)),
+      h("td", { class: "num", text: num(c.score) }))))));
+}
+function candidatesBlock(workflow) {
+  const table = candidatesTable(workflow);
+  if (!table) return null;
   return h("section", { class: "sheet-block" },
-    h("h2", {}, "Candidate actions", h("span", { class: "aside", text: "ranked by score" })),
-    h("div", { class: "data-wrap" }, h("table", { class: "data" },
-      h("thead", {}, h("tr", {}, h("th", { text: "Action" }), h("th", { text: "Proposed by" }), h("th", { text: "Why" }), h("th", { class: "num", text: "Score" }))),
-      h("tbody", {}, candidates.map((c) => h("tr", { "data-selected": c.action_id === selected },
-        h("td", {}, humanize(c.type), c.action_id === selected ? h("div", { class: "tag", text: "selected" }) : null),
-        h("td", { text: (AGENTS[c.source_agent] || [c.source_agent])[0] }),
-        h("td", { class: "muted" }, longText(c.rationale)),
-        h("td", { class: "num", text: num(c.score) })))))));
+    h("h2", {}, "Candidate actions", h("span", { class: "aside", text: "ranked by score" })), table);
 }
 function policyBlock(workflow, pending) {
   const p = workflow.policy;
@@ -695,17 +772,22 @@ function policyBlock(workflow, pending) {
     /* While the decision is open its reasons are already shown under "Why a human is needed". */
     !pending && (p.reasons || []).length ? h("ul", { class: "reasons", style: "margin-top: 8px" }, p.reasons.map((r) => h("li", { text: r }))) : null);
 }
-function agentsBlock(context) {
+function agentsBlock(context, model) {
   const results = context.agent_results || [];
   if (!results.length) return null;
   return h("section", { class: "sheet-block" },
     h("h2", {}, "Agent results", h("span", { class: "aside", text: `${results.length} result${results.length > 1 ? "s" : ""} · ${(context.evidence_refs || []).length} evidence records` })),
     h("ul", { class: "agents" }, results.map((r) => {
       const [name, role] = AGENTS[r.agent_id] || [r.agent_id, ""];
+      const phase = model.resultPhase.get(r.task_id);
       return h("li", { class: "agent" },
-        h("span", { class: "agent-name" }, name, h("small", { text: role })),
+        h("span", { class: "agent-name" }, name, h("small", { text: role }),
+          phase === undefined ? null : h("button", {
+            type: "button", class: "link-button phase-link", onclick: () => openPhase(phase),
+            "aria-label": `Open phase ${STAGES[phase].no} ${STAGES[phase].name}: full output of ${name}`,
+          }, `${STAGES[phase].no} ${STAGES[phase].name}`, icon("arrow"))),
         longText(r.rationale_summary, "agent-summary"),
-        h("span", { class: "tag", "data-tone": r.status === "SUCCEEDED" ? "ok" : "signal", text: r.status === "SUCCEEDED" ? "ok" : humanize(r.status) }));
+        h("span", { class: "tag", "data-tone": r.status === "SUCCEEDED" ? null : "signal", text: r.status === "SUCCEEDED" ? "ok" : humanize(r.status) }));
     })));
 }
 function auditLine(row) {
@@ -727,6 +809,359 @@ function auditLine(row) {
     default: return [humanize(row.action), null];
   }
 }
+/* ---- one phase, in full ------------------------------------------------------------------ */
+const PHASE_WHAT = {
+  INCIDENT: [
+    "Agent 1 compares the service's live signals with its baseline and opens a workflow when they break an SLO or growth rule.",
+    "The Orchestrator sends one bounded task to each specialist. Agent 2 ranks root-cause hypotheses from the evidence; Agent 5 checks whether a resource change is justified.",
+    "The Orchestrator merges the proposals into ranked candidates, the policy gate scores the best one (auto, approval required or block), and Agent 4 prepares the exact patch and dry-runs it.",
+    "When policy requires it, the HITL service asks a human with the right role. Approving signs a permit bound to the exact plan and patch hashes; nothing runs without it.",
+    "Agent 4 re-checks the preconditions, applies only the approved patch and records the state before and after.",
+    "Agent 1 observes the service for a window after the change and checks error rate, latency and memory growth against the SLO.",
+    "The Orchestrator closes the workflow: resolved when recovery is verified, escalated to a human when no safe action remains or an approval expires.",
+  ],
+  RELEASE: [
+    "A release was submitted: the Orchestrator opened a release workflow for this version.",
+    "Agent 3 assesses the release (tests, scans, quality policy) and returns allow, allow with warning, or block.",
+    "The policy gate scores the deployment and Agent 4 prepares the exact patch for the new version and dry-runs it.",
+    "A release manager approves the deployment. Approving signs a permit bound to the exact plan and patch hashes.",
+    "Agent 4 deploys exactly the approved version and records the state before and after.",
+    "Agent 1 checks the new version against the SLO over an observation window.",
+    "The Orchestrator closes the release: deployed and verified, or blocked by the release gate.",
+  ],
+  MLOPS: [
+    "A model check was started for this model.",
+    "Agent 6 measures drift on recent data; when it is significant it retrains a challenger and compares it with the champion.",
+    "The Orchestrator turns Agent 6's comparison into a decision: request a promotion review, or keep the champion.",
+    "Promotion always needs an ML lead. Approving records the decision; no infrastructure is changed.",
+    "Nothing is executed for a promotion review.",
+    "There is no runtime verification for a promotion review.",
+    "The Orchestrator closes the check: promotion approved, or champion kept.",
+  ],
+};
+const NOISE_KEYS = new Set(["message_id", "schema_version", "correlation_id", "causation_id", "trace_id", "idempotency_key", "requires_ack", "operation"]);
+
+function phaseBlock(i, view) {
+  const { context, workflow, detail, approval, model } = view;
+  const rows = model.rows[i];
+  const stage = STAGES[i];
+  const kind = context.kind in PHASE_WHAT ? context.kind : "INCIDENT";
+  const start = rows[0]?.at;
+  const later = model.rows.slice(i + 1).flat().map((r) => r.at).filter((at) => start && at >= start).sort()[0];
+  const end = later || rows[rows.length - 1]?.at;
+  const actors = [...new Set(rows.map((r) => (AGENTS[r.actor] || [r.actor])[0]))];
+
+  return h("section", { class: "phase", id: "phase-panel", role: "tabpanel", "aria-labelledby": `phase-tab-${i}` },
+    h("div", { class: "phase-band" },
+      h("h2", {}, h("span", { class: "phase-no", text: stage.no }), stage.name),
+      h("div", { class: "phase-nav" },
+        h("button", { type: "button", class: "link-button on-dark", disabled: i === 0, onclick: () => openPhase(i - 1) }, icon("back"), "Previous"),
+        h("button", { type: "button", class: "link-button on-dark", disabled: i === 6, onclick: () => openPhase(i + 1) }, "Next", icon("arrow")),
+        h("button", { type: "button", class: "link-button on-dark", onclick: () => openPhase(null) }, "Overview"))),
+    /* An open decision comes first in its own phase: the controls are the point of it. */
+    i === 3 && approval ? decisionBlock(approval, context) : null,
+    h("div", { class: "phase-body" },
+      h("p", { class: "lead", text: PHASE_WHAT[kind][i] }),
+      rows.length
+        ? h("dl", { class: "meta phase-facts" },
+          metaItem("Who", actors.join(", ")),
+          metaItem("Started", clockMs(start)),
+          metaItem(i === 6 ? "Closed at" : "Time in phase", i === 6 ? clockMs(start) : elapsed(end && start ? (new Date(end) - new Date(start)) / 1000 : null)),
+          metaItem("Records", String(rows.length)))
+        : null,
+      ...phaseOutputs(i, rows, view),
+      rows.length ? recordsView(rows, context.incident_id) : null));
+}
+
+function phaseOutputs(i, rows, view) {
+  const { context, workflow, detail, approval, model } = view;
+  if (!rows.length) return [notReached(i, view)];
+  const results = rows
+    .filter((r) => r.action === "AGENT_RESULT_APPENDED")
+    .map((r) => [r, [...(context.agent_results || [])].reverse().find((x) => x.task_id === r.detail?.task_id)])
+    .filter(([, result]) => result)
+    .map(([row, result]) => resultView(result, row, context));
+  switch (i) {
+    case 0: return [detectionView(workflow.detection, context), ...results];
+    case 2: return [consensusView(workflow), ...policyViews(rows, workflow), ...results];
+    case 3: return [approvalView(workflow, model), ...results];
+    case 6: return [closeView(rows, context, detail), ...results];
+    default: return results.length ? results : [h("p", { class: "muted", text: "No agent output was recorded in this phase; its records are below." })];
+  }
+}
+
+function notReached(i, view) {
+  const { context, model } = view;
+  const policy = model.rows[2].find((r) => r.action === "DECISION_RECORDED" && r.detail?.stage === "POLICY");
+  if (i === 3 && policy?.detail?.type === "AUTO" && model.rows[4].length) {
+    return h("p", { class: "lead", text: `Policy allowed this action automatically (decision score ${num(policy.detail.decision_score)}), so no human was asked. The HITL service issued the permit itself.` });
+  }
+  const last = [...model.rows.keys()].reverse().find((k) => model.rows[k].length && k !== 6) ?? 0;
+  return h("p", { class: "lead" }, TERMINAL[context.status]
+    ? `This workflow never reached this phase: it ended as "${STATUS_LABEL[context.status] || humanize(context.status)}" after phase ${STAGES[last].no} ${STAGES[last].name}.`
+    : `Not reached yet. The workflow is in phase ${STAGES[stageIndex(context.status)].no} ${STAGES[stageIndex(context.status)].name}.`);
+}
+
+function outputHead(title, subtitle, tag, tone) {
+  return h("div", { class: "output-head" },
+    h("h3", {}, title, subtitle ? h("small", { text: subtitle }) : null),
+    tag ? h("span", { class: "tag", "data-tone": tone || null, text: tag }) : null);
+}
+function kv(label, value, cls) {
+  if (value === null || value === undefined || value === "") return null;
+  return [h("dt", { text: label }), h("dd", { class: cls || null }, value)];
+}
+function keep(id, open) { if (open) state.expanded.add(id); else state.expanded.delete(id); }
+function rawDetails(label, value, id) {
+  const key = `raw:${id}`;
+  const text = JSON.stringify(value, null, 2);
+  return h("details", { class: "more-details raw-details", open: state.expanded.has(key), ontoggle: (e) => keep(key, e.target.open) },
+    h("summary", { text: label }),
+    h("div", { class: "raw-wrap" }, h("pre", { class: "raw", text }), copyButton(text, `Copy ${label.toLowerCase()}`)));
+}
+function valueView(v) {
+  if (typeof v === "number") return String(Math.round(v * 1000) / 1000);
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  if (typeof v === "string") return /^(EVD|ACTION|TASK|OP|REL|INC|MLOPS|APR|DEC|RES|DIAG|VER|MSG)-|^[0-9a-f]{24,}$|@sha256:/.test(v) ? h("code", { text: v }) : v;
+  if (Array.isArray(v) && v.every((x) => x === null || typeof x !== "object")) return v.join(", ");
+  if (v && typeof v === "object" && !Array.isArray(v) && Object.values(v).every((x) => x === null || typeof x !== "object")) {
+    const known = Object.entries(v).filter(([, x]) => x !== null && x !== "");
+    if (!known.length) return "–";
+    return h("span", { class: "inline-kv" }, known.map(([k, x]) => h("span", {}, h("span", { class: "muted", text: `${humanize(k)} ` }), valueView(x))));
+  }
+  return h("code", { class: "json", text: JSON.stringify(v) });
+}
+function fieldsView(obj, skip = []) {
+  const entries = Object.entries(obj || {}).filter(([k, v]) => !NOISE_KEYS.has(k) && !skip.includes(k)
+    && v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length));
+  if (!entries.length) return null;
+  return h("dl", { class: "kv fields" }, entries.map(([k, v]) => [h("dt", { text: humanize(k) }), h("dd", {}, valueView(v))]));
+}
+function evidenceList(ids, context) {
+  if (!ids?.length) return null;
+  const byId = new Map((context.evidence_refs || []).map((e) => [e.evidence_id, e]));
+  return h("div", {},
+    h("p", { class: "sub", text: `Evidence (${ids.length})` }),
+    h("ul", { class: "evidence" }, ids.map((id) => {
+      const e = byId.get(id);
+      return h("li", {}, h("code", { text: id }), h("span", { class: "muted", text: e
+        ? `${(AGENTS[e.source] || [e.source])[0]} · observed ${clock(e.observed_at)} · sha256 ${e.checksum_sha256.slice(0, 12)}…`
+        : "input reference from an earlier agent" }));
+    })));
+}
+function signalRows(signals) {
+  return Object.entries(signals || {}).map(([k, v]) => {
+    if (k === "decision_reason") return kv("Rule that fired", String(v));
+    if (SIGNAL[k] && typeof v === "number") return kv(SIGNAL[k][0], SIGNAL[k][1](v));
+    return kv(humanize(k), valueView(v));
+  });
+}
+
+function detectionView(det, context) {
+  if (context.kind !== "INCIDENT") {
+    const s = context.service || {};
+    return h("section", { class: "output" },
+      outputHead("Orchestrator", context.kind === "RELEASE" ? "Release submitted" : "Model check started"),
+      h("dl", { class: "kv" }, kv("Service", s.service_id), kv("Namespace", s.namespace), kv("Version", s.version),
+        kv("Environment", context.environment), kv("Priority", `${context.priority} · ${String(context.severity).toLowerCase()}`)));
+  }
+  const p = det?.payload || {};
+  const signals = p.signals && Object.keys(p.signals).length ? p.signals : context.latest_signals;
+  return h("section", { class: "output" },
+    outputHead("Agent 1 · Monitoring", "Anomaly detected"),
+    h("dl", { class: "kv" },
+      kv("Detector", p.detector),
+      kv("Anomaly score", typeof p.anomaly_score === "number" ? num(p.anomaly_score) : null),
+      kv("Confidence", typeof det?.confidence === "number" ? pct(det.confidence) : null),
+      kv("Anomaly ID", p.anomaly_id ? h("code", { text: p.anomaly_id }) : null),
+      kv("Verify after action", typeof p.verification_required_after_action === "boolean" ? (p.verification_required_after_action ? "required" : "not required") : null)),
+    signals && Object.keys(signals).length ? h("div", {},
+      h("p", { class: "sub", text: "Signals at detection" }),
+      h("dl", { class: "kv signals" }, signalRows(signals))) : null,
+    det ? rawDetails("Raw detection event", det, `${context.incident_id}:detection`) : null);
+}
+
+function resultView(result, row, context) {
+  const [name, role] = AGENTS[result.agent_id] || [result.agent_id, ""];
+  const payload = result.payload || {};
+  /* Agent 5 returns a full event envelope: its output is the inner payload. */
+  const body = payload.message_type && payload.payload && typeof payload.payload === "object" ? payload.payload : payload;
+  const what = humanize(String(row.detail?.type || "").split(":").pop());
+  return h("section", { class: "output" },
+    outputHead(`${name} · ${role}`, what, result.status === "SUCCEEDED" ? "ok" : humanize(result.status), result.status === "SUCCEEDED" ? null : "signal"),
+    h("dl", { class: "kv" },
+      kv("Task", h("code", { text: result.task_id })),
+      kv("Reported", clockMs(row.at)),
+      kv("Confidence", typeof result.confidence === "number" ? pct(result.confidence) : null)),
+    result.rationale_summary ? h("p", { class: "rationale" }, longText(result.rationale_summary)) : null,
+    payloadView(body),
+    evidenceList(result.evidence_refs, context),
+    rawDetails("Raw output", payload, `${context.incident_id}:${result.task_id}`));
+}
+function payloadView(p) {
+  if (Array.isArray(p.hypotheses)) return diagnosisView(p);
+  if (Array.isArray(p.patch)) return planView(p);
+  if (p.pre_state || p.post_state) return stateView(p);
+  if (p.checks && typeof p.checks === "object" && !Array.isArray(p.checks)) return checksView(p);
+  return fieldsView(p, ["rationale_summary", "evidence_refs"]);
+}
+function diagnosisView(p) {
+  const actions = p.recommended_actions || [];
+  return h("div", { class: "output-body" },
+    h("dl", { class: "kv" },
+      kv("Root cause", humanize(p.primary_root_cause), "strong"),
+      kv("Evidence strength", typeof p.evidence_strength === "number" ? pct(p.evidence_strength) : null),
+      kv("Needs more evidence", typeof p.requires_additional_evidence === "boolean" ? (p.requires_additional_evidence ? "yes" : "no") : null)),
+    h("p", { class: "sub", text: "Hypotheses" }),
+    h("div", { class: "data-wrap" }, h("table", { class: "data" },
+      h("thead", {}, h("tr", {}, h("th", { text: "Rank" }), h("th", { text: "Hypothesis" }), h("th", { class: "num", text: "Evidence" }), h("th", { class: "num", text: "Probability" }))),
+      h("tbody", {}, p.hypotheses.map((x) => h("tr", {},
+        h("td", { text: x.rank }), h("td", { text: humanize(x.code) }),
+        h("td", { class: "num", text: (x.evidence_refs || []).length }), h("td", { class: "num", text: pct(x.probability) })))))),
+    actions.length ? h("p", { class: "sub", text: "Recommended actions" }) : null,
+    actions.length ? h("ul", { class: "reasons" }, actions.map((a) => {
+      const params = Object.entries(a.parameters || {}).filter(([k]) => k !== "service").map(([k, x]) => `${humanize(k).toLowerCase()} ${x}`);
+      return h("li", {}, h("span", {},
+        `${humanize(a.action || a.type)} ${a.target?.service || a.parameters?.service || ""}`,
+        params.length ? h("span", { class: "muted", text: ` · ${params.join(" · ")}` }) : null));
+    })) : null,
+    limitations(p.limitations));
+}
+function limitations(value) {
+  const items = (Array.isArray(value) ? value : String(value || "").split(/;\s*/)).map((x) => String(x).trim()).filter(Boolean);
+  if (!items.length) return null;
+  return h("details", { class: "more-details" },
+    h("summary", { text: `Limitations the agent declares (${items.length})` }),
+    h("ul", { class: "reasons" }, items.map((x) => h("li", { text: x }))));
+}
+function planView(p) {
+  const { rows, preconditions } = patchChanges(p.patch);
+  const t = p.target || {};
+  return h("div", { class: "output-body" },
+    h("dl", { class: "kv" },
+      kv("Plan", humanize(p.status), p.status === "PREPARED" ? "strong" : null),
+      kv("Reason", p.reason),
+      kv("Target", t.name ? `${t.kind || "Deployment"} ${t.namespace}/${t.name} on ${t.cluster_id}` : null),
+      kv("Expected version", t.expected_resource_version)),
+    h("p", { class: "sub", text: "Exact patch" }),
+    changeTable(rows), preconditionLine(preconditions),
+    h("dl", { class: "hashes", "aria-label": "Values a signed permit binds" },
+      hashRow("Plan", p.plan_hash), hashRow("Patch", p.patch_hash), hashRow("Scope", p.authorization_scope_hash), hashRow("Operation", p.operation_id)));
+}
+function stateView(p) {
+  const before = p.pre_state || {};
+  const after = p.post_state || {};
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((k) => !["execution_id", "reason"].includes(k));
+  const fmt = (v) => (v === undefined ? "–" : typeof v === "string" && v.includes("@sha256:") ? shortImage(v) : String(v));
+  return h("div", { class: "output-body" },
+    fieldsView(p, ["pre_state", "post_state", "action_id", "action_version"]),
+    h("p", { class: "sub", text: "Cluster state before and after" }),
+    h("div", { class: "data-wrap" }, h("table", { class: "data" },
+      h("thead", {}, h("tr", {}, h("th", { text: "Field" }), h("th", { text: "Before" }), h("th", { text: "After" }))),
+      h("tbody", {}, keys.map((k) => h("tr", { "data-selected": before[k] !== after[k] },
+        h("td", { text: humanize(k) }), h("td", { class: "mono", text: fmt(before[k]) }), h("td", { class: "mono", text: fmt(after[k]) })))))));
+}
+function checksView(p) {
+  return h("div", { class: "output-body" },
+    h("dl", { class: "kv" },
+      kv("Verdict", humanize(p.status), "strong"),
+      kv("Observation window", p.window),
+      kv("Verification ID", p.verification_id ? h("code", { text: p.verification_id }) : null)),
+    h("p", { class: "sub", text: "SLO checks" }),
+    h("ul", { class: "checks" }, Object.entries(p.checks).map(([k, v]) => h("li", {},
+      h("span", { text: SIGNAL[k]?.[0] || humanize(k) }),
+      h("span", { class: "tag", "data-tone": v === "PASS" ? "ok" : v === "FAIL" ? "signal" : null, text: v.toLowerCase() })))));
+}
+
+function consensusView(workflow) {
+  const c = workflow.consensus;
+  if (!c) return null;
+  return h("section", { class: "output" },
+    outputHead("Orchestrator · Consensus", "Agent proposals merged and ranked"),
+    h("dl", { class: "kv" },
+      kv("Root cause", c.primary_root_cause ? humanize(c.primary_root_cause) : null, "strong"),
+      kv("RCA confidence", pct(c.rca_confidence)),
+      kv("Evidence strength", pct(c.evidence_strength)),
+      kv("Specialist agreement", pct(c.agreement)),
+      kv("Conflicts", (c.conflicts || []).join("; ") || "none")),
+    candidatesTable(workflow));
+}
+function policyViews(rows, workflow) {
+  const candidates = workflow.consensus?.candidates || [];
+  return rows.filter((r) => r.action === "DECISION_RECORDED" && r.detail?.stage === "POLICY").map((r) => {
+    const d = r.detail;
+    const cand = candidates.find((c) => c.action_id === d.action_id);
+    const factors = d.risk?.factors || {};
+    return h("section", { class: "output" },
+      outputHead("Orchestrator · Policy gate", cand ? `Evaluated: ${humanize(cand.type)}` : "Candidate evaluated",
+        d.type === "APPROVAL_REQUIRED" ? "approval required" : humanize(d.type).toLowerCase(), d.type === "AUTO" ? null : "signal"),
+      h("dl", { class: "kv" },
+        kv("Decision score", num(d.decision_score)),
+        kv("Risk", d.risk ? `${String(d.risk.level || "").toLowerCase()} · ${num(d.risk.score)}` : null),
+        kv("Risk factors", Object.keys(factors).length ? valueView(Object.fromEntries(Object.entries(factors).map(([k, v]) => [RISK_SHORT[k] || k, pct(v)]))) : null),
+        kv("Policy version", d.policy_version)),
+      (d.reasons || []).length ? h("ul", { class: "reasons" }, d.reasons.map((x) => h("li", { text: x }))) : null,
+      rawDetails("Raw policy decision", d, `${r.seq}:policy`));
+  });
+}
+function approvalView(workflow, model) {
+  const a = workflow.approval;
+  if (!a) return null;
+  const receipt = a.receipt || {};
+  const waited = a.created_at && receipt.approved_at ? (new Date(receipt.approved_at) - new Date(a.created_at)) / 1000 : null;
+  return h("section", { class: "output" },
+    outputHead("HITL service · Approval", a.action_id ? `For ${a.action_id}` : null, humanize(a.state).toLowerCase(),
+      a.state === "APPROVED" ? null : a.state === "WAITING_FOR_HUMAN" || a.state === "REJECTED" || a.state === "EXPIRED" ? "signal" : null),
+    h("dl", { class: "kv" },
+      kv("Requested", clockMs(a.created_at)),
+      kv(a.state === "EXPIRED" ? "Expired at" : "Expires", clock(a.expires_at)),
+      kv("Decision", a.decision ? humanize(a.decision) : null),
+      kv("Approver", a.approver_id),
+      kv("Comment", a.comment),
+      kv("Human wait", waited === null ? null : elapsed(waited)),
+      kv("Permit", receipt.method ? `${humanize(receipt.method).toLowerCase()} · issued by ${receipt.issuer}` : null),
+      kv("Approval ID", a.approval_id ? h("code", { text: a.approval_id }) : null)),
+    rawDetails("Raw approval record", a, `${a.approval_id}:approval`));
+}
+function closeView(rows, context, detail) {
+  const close = rows.find((r) => r.action === "DECISION_RECORDED" && r.detail?.stage === "CLOSE");
+  const d = close?.detail || {};
+  const ended = context.closed_at || rows[0]?.at;
+  return h("section", { class: "output" },
+    outputHead("Orchestrator · Close", STATUS_LABEL[context.status] || humanize(context.status),
+      humanize(d.type || context.status).toLowerCase(), TERMINAL[context.status] === "fail" ? "signal" : TERMINAL[context.status] === "ok" ? "ok" : null),
+    h("dl", { class: "kv" },
+      kv("Outcome", d.outcome ? humanize(d.outcome) : null),
+      kv("Reason", d.reason ? humanize(d.reason) : null),
+      kv("Action", d.action?.type ? humanize(d.action.type) : null),
+      kv("Total time", duration(context.opened_at, ended)),
+      kv("Audit chain", detail.audit_chain_valid ? `verified · ${(detail.audit || []).length} records` : "broken: records were altered")),
+    (d.notes || []).length ? h("ul", { class: "reasons" }, d.notes.map((x) => h("li", { text: x }))) : null,
+    close ? rawDetails("Raw close decision", d, `${close.seq}:close`) : null);
+}
+function recordsView(rows, incidentId) {
+  return h("section", { class: "output" },
+    outputHead("Records in this phase", `${rows.length} hash-chained audit record${rows.length === 1 ? "" : "s"} · select one to see it in full`),
+    h("ol", { class: "records" }, rows.map((row) => {
+      const [base, tone, extra] = auditLine(row);
+      const [name] = AGENTS[row.actor] || [row.actor];
+      const key = `rec:${incidentId}:${row.seq}`;
+      return h("li", { "data-tone": tone },
+        h("details", { open: state.expanded.has(key), ontoggle: (e) => keep(key, e.target.open) },
+          h("summary", {},
+            h("time", { datetime: row.at, text: clockMs(row.at) }),
+            h("span", { class: "who", title: row.actor, text: name }),
+            h("span", { class: "what" }, base, extra ? h("small", { text: ` ${extra}` }) : null)),
+          h("pre", { class: "raw", text: JSON.stringify({ seq: row.seq, at: row.at, actor: row.actor, action: row.action, detail: row.detail }, null, 2) })));
+    })));
+}
+function pendingStrip(approval) {
+  return h("div", { class: "pending-strip" },
+    h("strong", { text: "Decision required" }),
+    h("span", { class: "countdown", "data-expires": approval.expires_at, text: countdown(approval.expires_at) }),
+    h("button", { type: "button", class: "button small on-signal", onclick: () => openPhase(3) }, "Open the decision", icon("arrow")));
+}
+
 function groupAudit(audit) {
   /* Consecutive "evidence stored" records by the same actor read as one line. */
   const out = [];
