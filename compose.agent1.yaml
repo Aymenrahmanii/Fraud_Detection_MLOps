@@ -1,0 +1,152 @@
+# Agent 1 (monitoring) stack: the fraud API, its observability tools and local test services.
+# The agent itself runs on the host: python -m agent1_monitoring
+#
+# Fraud API + tools: docker compose -f compose.agent1.yaml --profile observability --profile fraud up -d fraud-api prometheus grafana cadvisor loki promtail
+# Test services:     add --profile chain (payments-db) and --profile chain3 (checkout-api).
+name: agent1-monitoring
+
+services:
+  # The real service under watch, built from this repository (its code is not modified).
+  fraud-api:
+    build: {context: ., dockerfile: Dockerfile}
+    image: agent1-fraud-api:local
+    profiles: [fraud]
+    ports: ["127.0.0.1:8000:8000"]
+    environment: {MLFLOW_ALLOW_FILE_STORE: "true"}
+    # Local bench: the API syncs each prediction to SQLite, and that disk stalls under Docker
+    # Desktop/WSL2. Keeping its log in memory measures the service, not this laptop's disk.
+    tmpfs: ["/app/artifacts:uid=1000,gid=1000,mode=0755"]
+    mem_limit: 768m
+    cpus: 1.0
+    # Promtail and cAdvisor recognise the container through this label.
+    labels: {service_id: fraud-api}
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [observability]
+    ports: ["127.0.0.1:9090:9090"]
+    # Short retention keeps memory and disk low on a development laptop.
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=2d
+    volumes:
+      - ./agent1_monitoring/observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 512m
+    cpus: 0.5
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    profiles: [observability]
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Local only (bound to 127.0.0.1): dashboards readable without logging in.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/agent1-service-health.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./agent1_monitoring/observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/src.yaml:ro
+      - ./agent1_monitoring/observability/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/agent1.yaml:ro
+      - ./agent1_monitoring/observability/dashboards:/etc/grafana/dashboards:ro
+    mem_limit: 256m
+    cpus: 0.5
+
+  # Log store queried by Agent 1 (LogQL over HTTP, port 3100).
+  loki:
+    image: grafana/loki:3.5.5
+    profiles: [observability]
+    ports: ["127.0.0.1:3100:3100"]
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes: ["loki-data:/loki"]
+    mem_limit: 384m
+    cpus: 0.5
+
+  # Ships container logs to Loki.
+  promtail:
+    image: grafana/promtail:3.5.5
+    profiles: [observability]
+    command: ["-config.file=/etc/promtail/config.yaml"]
+    volumes:
+      - ./agent1_monitoring/observability/promtail.yaml:/etc/promtail/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on: [loki]
+    mem_limit: 128m
+    cpus: 0.25
+
+  # Per-container CPU/RAM metrics (container_memory_working_set_bytes, ...).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    profiles: [observability]
+    ports: ["127.0.0.1:8081:8080"]
+    privileged: true
+    devices: ["/dev/kmsg"]
+    # Containers only, measured every 30 s: cAdvisor's default settings are costly.
+    command: ["--docker_only=true", "--housekeeping_interval=30s"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    mem_limit: 192m
+    cpus: 0.25
+
+  # Test service with local-only fault injection (OOM, latency, errors). Never deploy it.
+  target-app:
+    build: ./agent1_monitoring/experiments/target_app
+    image: agent1-target-app:local
+    profiles: [observability]
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      SERVICE_NAME: payment-service
+      CHAOS_ENABLED: "true"
+      INJECTION_LOG: /app/runs/injections.jsonl
+      # Reasoning test: PAYMENT_DEPENDENCY_URL=http://payments-db:8080 makes every payment call
+      # the payments-db service (profile "chain"). Empty by default: no dependency.
+      DEPENDENCY_URL: ${PAYMENT_DEPENDENCY_URL:-}
+    volumes: ["./agent1_monitoring/runs:/app/runs"]
+    # A memory limit lets an injected memory growth end in a real OOM kill.
+    mem_limit: 512m
+    cpus: 0.5
+    labels: {service_id: payment-service}
+    restart: unless-stopped
+
+  # Second test service of the call chain payment-service -> payments-db.
+  payments-db:
+    image: agent1-target-app:local
+    profiles: [chain]
+    ports: ["127.0.0.1:8082:8080"]
+    environment:
+      SERVICE_NAME: payments-db
+      CHAOS_ENABLED: "true"
+      INJECTION_LOG: /app/runs/injections.jsonl
+    volumes: ["./agent1_monitoring/runs:/app/runs"]
+    mem_limit: 256m
+    cpus: 0.5
+    labels: {service_id: payments-db}
+    restart: unless-stopped
+
+  # Third test service: checkout-api -> payment-service -> payments-db.
+  checkout-api:
+    image: agent1-target-app:local
+    profiles: [chain3]
+    ports: ["127.0.0.1:8083:8080"]
+    environment:
+      SERVICE_NAME: checkout-api
+      CHAOS_ENABLED: "true"
+      INJECTION_LOG: /app/runs/injections.jsonl
+      DEPENDENCY_URL: http://target-app:8080
+      DEPENDENCY_NAME: payment-service
+    volumes: ["./agent1_monitoring/runs:/app/runs"]
+    mem_limit: 256m
+    cpus: 0.5
+    labels: {service_id: checkout-api}
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:

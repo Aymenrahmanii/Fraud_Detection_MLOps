@@ -6,6 +6,7 @@ WORKDIR /app
 
 # ---------- Install dependencies ----------
 COPY requirements.txt .
+COPY agent6_mlops_lifecycle/requirements.txt agent6_mlops_lifecycle/constraints-model.txt ./agent6_mlops_lifecycle/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---------- Copy application code ----------
@@ -13,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # tracking URI (file:./API/mlruns); it's included here since it lives
 # under API/.
 COPY API ./API
+COPY agent6_mlops_lifecycle ./agent6_mlops_lifecycle
 
 # ---------- Run as non-root ----------
 RUN useradd --create-home --shell /bin/false appuser \

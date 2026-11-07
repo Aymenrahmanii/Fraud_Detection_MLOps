@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Dummy idempotency key in an integration-test fixture (agent4)"
+regexTarget = "match"
+regexes = ['''idempotency_key="[^"]+"''']
+paths = ['''agent4_deployment_recovery/tests/integration/.*''']

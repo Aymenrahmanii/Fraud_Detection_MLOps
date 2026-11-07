@@ -1,0 +1,45 @@
+# Prepare credentials with `python -m agent6_mlops_lifecycle init` first.
+# Use --env-file agent6_mlops_lifecycle/.env for interpolation; never publish its output.
+services:
+  fraud-api:
+    build: {context: ., dockerfile: Dockerfile}
+    ports: ["127.0.0.1:8021:8000"]
+    environment:
+      AGENT6_PREDICTION_DATABASE: /app/artifacts/application.sqlite3
+      AGENT6_OUTCOME_SERVICE_TOKEN: ${AGENT6_MONITOR_OUTCOME_TOKEN:?Run agent6 init first}
+      AGENT6_BUSINESS_SOURCE_IDS: ${AGENT6_BUSINESS_SOURCE_IDS:-business-service}
+      PYTHONDONTWRITEBYTECODE: "1"
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    volumes: ["${AGENT6_CONTAINER_STATE:-./artifacts/agent6-container}:/app/artifacts"]
+    restart: unless-stopped
+  agent6:
+    build: {context: ., dockerfile: agent6_mlops_lifecycle/Dockerfile}
+    ports: ["127.0.0.1:8026:8026"]
+    env_file: [agent6_mlops_lifecycle/.env]
+    environment:
+      AGENT6_MONITOR_PREDICTION_URL: http://fraud-api:8000/predict
+      AGENT6_MONITOR_APPLICATION_HEALTH_URL: http://fraud-ui:8521/_stcore/health
+      AGENT6_MONITOR_ALLOWED_SERVING_HOSTS: '["fraud-api","fraud-ui"]'
+      AGENT6_MONITOR_BUSINESS_DATABASE_URL: ${AGENT6_MONITOR_BUSINESS_DATABASE_URL:-sqlite:////app/artifacts/application.sqlite3}
+      AGENT6_LIFECYCLE_MODEL_PYTHON: /usr/local/bin/python
+      PYTHONDONTWRITEBYTECODE: "1"
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    volumes:
+      - ${AGENT6_CONTAINER_STATE:-./artifacts/agent6-container}:/app/artifacts
+      - ./Data:/app/Data:ro
+    depends_on:
+      fraud-api: {condition: service_healthy}
+      fraud-ui: {condition: service_started}
+    restart: unless-stopped
+  fraud-ui:
+    build: {context: ., dockerfile: agent6_mlops_lifecycle/Dockerfile}
+    command: ["python", "-m", "streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8521", "--server.headless=true", "--browser.gatherUsageStats=false"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8521/_stcore/health').read()"]
+    ports: ["127.0.0.1:8521:8521"]
+    environment:
+      AGENT6_PREDICTION_DATABASE: /app/artifacts/application.sqlite3
+      PYTHONDONTWRITEBYTECODE: "1"
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    volumes: ["${AGENT6_CONTAINER_STATE:-./artifacts/agent6-container}:/app/artifacts"]
+    restart: unless-stopped

@@ -52,9 +52,9 @@ def generate_rationale(assessment: ReleaseAssessment, *, model: str = DEFAULT_MO
                         f"decision: {assessment.decision}\n"
                         f"blocking_reasons: {assessment.blocking_reasons}\n"
                         f"warnings: {assessment.warnings}\n"
-                        f"tests: {assessment.tests.model_dump()}\n"
-                        f"quality: {assessment.quality.model_dump()}\n"
-                        f"security: {assessment.security.model_dump()}"
+                        f"tests: {assessment.tests.model_dump(exclude={'findings'})}\n"
+                        f"quality: {assessment.quality.model_dump(exclude={'findings'})}\n"
+                        f"security: {assessment.security.model_dump(exclude={'findings'})}"
                     ),
                 },
             ],

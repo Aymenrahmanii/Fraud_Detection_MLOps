@@ -1,0 +1,25 @@
+{
+  "project_id": "energy-demand-metrics",
+  "model_id": "forecaster",
+  "model_version": "v2",
+  "task_type": "regression",
+  "evaluator_id": "metric-policy-v2",
+  "policy_version": "synthetic-multimetric-v2",
+  "min_samples": 4,
+  "metric_policy": {
+    "schema_version": "2",
+    "min_outcome_coverage": 0.7,
+    "gates": [
+      {
+        "metric_id": "regression.mae.v1",
+        "operator": "lte",
+        "threshold": 0.3
+      },
+      {
+        "metric_id": "regression.r2.v1",
+        "operator": "gte",
+        "threshold": 0.9
+      }
+    ]
+  }
+}

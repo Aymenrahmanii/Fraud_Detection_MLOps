@@ -1,0 +1,14 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[lint.isort]
+known-first-party = ["agent1_monitoring"]
+
+[lint.per-file-ignores]
+# assert is how pytest checks results; seeded random numbers build test curves, not secrets.
+"tests/*.py" = ["S101", "S311"]
+# Local test scripts: fixed command lists without a shell, fixed local URLs, simulated traffic.
+"experiments/**/*.py" = ["S101", "S603", "S607", "S310", "S311"]

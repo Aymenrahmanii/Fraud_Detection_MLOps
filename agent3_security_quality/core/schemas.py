@@ -12,6 +12,20 @@ from pydantic import BaseModel, Field
 Decision = Literal["BLOCK", "ALLOW_WITH_WARNING", "ALLOW"]
 
 
+class Finding(BaseModel):
+    """One concrete issue, with enough location detail to jump straight to it.
+
+    Never carries the secret/credential value itself -- only where it is.
+    """
+
+    scanner: str
+    rule: str
+    message: str
+    file: str = ""
+    line: int | None = None
+    severity: str = ""
+
+
 class TestResults(BaseModel):
     total: int
     passed: int
@@ -19,12 +33,14 @@ class TestResults(BaseModel):
     skipped: int
     coverage_pct: float
     flaky_detected: int = 0
+    findings: list[Finding] = Field(default_factory=list)  # failing tests
 
 
 class QualityResults(BaseModel):
     gate: Literal["PASSED", "FAILED"]
     new_critical_issues: int = 0
     duplication_pct: float = 0.0
+    findings: list[Finding] = Field(default_factory=list)
 
 
 class SecurityResults(BaseModel):
@@ -34,6 +50,7 @@ class SecurityResults(BaseModel):
     secrets_found: int = 0
     highest_cvss: float = 0.0
     policy_exception_required: bool = False
+    findings: list[Finding] = Field(default_factory=list)
 
 
 class ArtifactRef(BaseModel):

@@ -1,0 +1,639 @@
+{
+  "$defs": {
+    "CalibrationBin": {
+      "additionalProperties": false,
+      "properties": {
+        "lower": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Lower",
+          "type": "number"
+        },
+        "upper": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Upper",
+          "type": "number"
+        },
+        "samples": {
+          "minimum": 0,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "mean_probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Mean Probability",
+          "type": "number"
+        },
+        "observed_fraud_rate": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Observed Fraud Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lower",
+        "upper",
+        "samples",
+        "mean_probability",
+        "observed_fraud_rate"
+      ],
+      "title": "CalibrationBin",
+      "type": "object"
+    },
+    "Confusion": {
+      "additionalProperties": false,
+      "properties": {
+        "samples": {
+          "minimum": 0,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "positive_labels": {
+          "minimum": 0,
+          "title": "Positive Labels",
+          "type": "integer"
+        },
+        "negative_labels": {
+          "minimum": 0,
+          "title": "Negative Labels",
+          "type": "integer"
+        },
+        "true_positives": {
+          "minimum": 0,
+          "title": "True Positives",
+          "type": "integer"
+        },
+        "false_positives": {
+          "minimum": 0,
+          "title": "False Positives",
+          "type": "integer"
+        },
+        "false_negatives": {
+          "minimum": 0,
+          "title": "False Negatives",
+          "type": "integer"
+        },
+        "true_negatives": {
+          "minimum": 0,
+          "title": "True Negatives",
+          "type": "integer"
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Precision"
+        },
+        "recall": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recall"
+        },
+        "f1": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "F1"
+        },
+        "false_positive_rate": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "False Positive Rate"
+        },
+        "missed_fraud_rate": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Missed Fraud Rate"
+        },
+        "precision_interval95": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Precision Interval95"
+        },
+        "recall_interval95": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recall Interval95"
+        },
+        "false_positive_interval95": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "False Positive Interval95"
+        },
+        "estimated_error_cost": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Estimated Error Cost"
+        },
+        "cost_per_1000": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cost Per 1000"
+        }
+      },
+      "required": [
+        "samples",
+        "positive_labels",
+        "negative_labels",
+        "true_positives",
+        "false_positives",
+        "false_negatives",
+        "true_negatives",
+        "precision",
+        "recall",
+        "f1",
+        "false_positive_rate",
+        "missed_fraud_rate",
+        "precision_interval95",
+        "recall_interval95",
+        "false_positive_interval95",
+        "estimated_error_cost",
+        "cost_per_1000"
+      ],
+      "title": "Confusion",
+      "type": "object"
+    },
+    "FraudSlice": {
+      "additionalProperties": false,
+      "properties": {
+        "feature": {
+          "title": "Feature",
+          "type": "string"
+        },
+        "bucket": {
+          "title": "Bucket",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "INSUFFICIENT_EVIDENCE",
+            "PASS",
+            "FAIL"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Confusion"
+        }
+      },
+      "required": [
+        "feature",
+        "bucket",
+        "status",
+        "metrics"
+      ],
+      "title": "FraudSlice",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ProbabilityQuality": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "UNAVAILABLE",
+            "INSUFFICIENT_EVIDENCE",
+            "ASSESSED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "samples": {
+          "minimum": 0,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "labeled_probability_coverage": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Labeled Probability Coverage",
+          "type": "number"
+        },
+        "positive_labels": {
+          "minimum": 0,
+          "title": "Positive Labels",
+          "type": "integer"
+        },
+        "negative_labels": {
+          "minimum": 0,
+          "title": "Negative Labels",
+          "type": "integer"
+        },
+        "average_precision": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Average Precision"
+        },
+        "roc_auc": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Roc Auc"
+        },
+        "brier_score": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Brier Score"
+        },
+        "expected_calibration_error": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expected Calibration Error"
+        },
+        "calibration_bins": {
+          "items": {
+            "$ref": "#/$defs/CalibrationBin"
+          },
+          "title": "Calibration Bins",
+          "type": "array"
+        },
+        "precision_recall_curve": {
+          "items": {
+            "$ref": "#/$defs/ThresholdPoint"
+          },
+          "title": "Precision Recall Curve",
+          "type": "array"
+        },
+        "threshold_comparison": {
+          "items": {
+            "$ref": "#/$defs/ThresholdPoint"
+          },
+          "title": "Threshold Comparison",
+          "type": "array"
+        },
+        "advisory_cost_threshold": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Advisory Cost Threshold"
+        },
+        "threshold_applied": {
+          "const": false,
+          "default": false,
+          "title": "Threshold Applied",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "status",
+        "samples",
+        "labeled_probability_coverage",
+        "positive_labels",
+        "negative_labels",
+        "average_precision",
+        "roc_auc",
+        "brier_score",
+        "expected_calibration_error",
+        "calibration_bins",
+        "precision_recall_curve",
+        "threshold_comparison",
+        "advisory_cost_threshold"
+      ],
+      "title": "ProbabilityQuality",
+      "type": "object"
+    },
+    "ThresholdPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Precision"
+        },
+        "recall": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recall"
+        },
+        "false_positive_rate": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "False Positive Rate"
+        },
+        "cost_per_1000": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cost Per 1000"
+        }
+      },
+      "required": [
+        "threshold",
+        "precision",
+        "recall",
+        "false_positive_rate",
+        "cost_per_1000"
+      ],
+      "title": "ThresholdPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "policy_version": {
+      "const": "fraud-risk-v1",
+      "default": "fraud-risk-v1",
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "policy": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Policy",
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "WAITING_FOR_LABELS",
+        "INSUFFICIENT_EVIDENCE",
+        "PASS",
+        "FAIL"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "eligible_predictions": {
+      "minimum": 0,
+      "title": "Eligible Predictions",
+      "type": "integer"
+    },
+    "outcome_coverage": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Outcome Coverage",
+      "type": "number"
+    },
+    "excluded_simulated_outcomes": {
+      "minimum": 0,
+      "title": "Excluded Simulated Outcomes",
+      "type": "integer"
+    },
+    "duplicate_transactions_excluded": {
+      "minimum": 0,
+      "title": "Duplicate Transactions Excluded",
+      "type": "integer"
+    },
+    "missing_feature_evidence": {
+      "minimum": 0,
+      "title": "Missing Feature Evidence",
+      "type": "integer"
+    },
+    "metrics": {
+      "$ref": "#/$defs/Confusion"
+    },
+    "probabilities": {
+      "$ref": "#/$defs/ProbabilityQuality"
+    },
+    "slices": {
+      "items": {
+        "$ref": "#/$defs/FraudSlice"
+      },
+      "title": "Slices",
+      "type": "array"
+    },
+    "gates": {
+      "additionalProperties": {
+        "enum": [
+          "PASS",
+          "FAIL",
+          "NOT_CONFIGURED",
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "type": "string"
+      },
+      "title": "Gates",
+      "type": "object"
+    },
+    "cost_unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cost Unit"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "status",
+    "eligible_predictions",
+    "outcome_coverage",
+    "excluded_simulated_outcomes",
+    "duplicate_transactions_excluded",
+    "missing_feature_evidence",
+    "metrics",
+    "probabilities",
+    "slices",
+    "gates",
+    "cost_unit",
+    "limitations"
+  ],
+  "title": "FraudEvaluation",
+  "type": "object"
+}

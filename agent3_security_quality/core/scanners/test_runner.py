@@ -16,10 +16,10 @@ from pathlib import Path
 import defusedxml.ElementTree as ET
 
 from agent3_security_quality.core.errors import ScannerExecutionError, ScannerUnavailableError
-from agent3_security_quality.core.schemas import TestResults
+from agent3_security_quality.core.schemas import Finding, TestResults
 
 
-def _parse_junit(junit_path: Path) -> tuple[int, int, int, int]:
+def _parse_junit(junit_path: Path) -> tuple[int, int, int, int, list[Finding]]:
     root = ET.parse(junit_path).getroot()
     suite = root if root.tag == "testsuite" else root.find("testsuite")
     if suite is None:
@@ -31,7 +31,26 @@ def _parse_junit(junit_path: Path) -> tuple[int, int, int, int]:
     skipped = int(suite.get("skipped", 0))
     failed = failures + errors
     passed = total - failed - skipped
-    return total, passed, failed, skipped
+
+    findings = []
+    for case in suite.iter("testcase"):
+        problem = case.find("failure")
+        if problem is None:
+            problem = case.find("error")
+        if problem is None:
+            continue
+        classname = case.get("classname", "")
+        findings.append(
+            Finding(
+                scanner="pytest",
+                rule=f"{classname}::{case.get('name', '')}",
+                message=(problem.get("message") or "")[:300],
+                file=case.get("file") or classname.replace(".", "/") + ".py",
+                line=int(case["line"]) if case.get("line") else None,
+                severity="failure",
+            )
+        )
+    return total, passed, failed, skipped, findings
 
 
 def _parse_coverage(coverage_path: Path) -> float:
@@ -72,7 +91,7 @@ def run(
             f"{result.stdout}\n{result.stderr}"
         )
 
-    total, passed, failed, skipped = _parse_junit(junit_file)
+    total, passed, failed, skipped, findings = _parse_junit(junit_file)
     coverage_pct = _parse_coverage(Path(coverage_path)) if cov_sources else 0.0
 
     return TestResults(
@@ -82,4 +101,5 @@ def run(
         skipped=skipped,
         coverage_pct=coverage_pct,
         flaky_detected=0,  # TODO(phase 3): needs multi-run history, not a single pass
+        findings=findings,
     )

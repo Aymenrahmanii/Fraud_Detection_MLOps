@@ -1,0 +1,157 @@
+[
+  {
+    "name": "support-routing",
+    "manifest": {
+      "project_id": "support-routing",
+      "model_id": "baseline",
+      "model_version": "v1",
+      "task_type": "binary_classification",
+      "evaluator_id": "binary-f1-v1",
+      "policy_version": "local-demo-v1",
+      "min_samples": 4,
+      "min_positive_samples": 2,
+      "min_f1": 0.75,
+      "max_mae": null,
+      "min_text_score": null,
+      "allow_external_llm": false,
+      "evaluator_config": {}
+    },
+    "batch": {
+      "project_id": "support-routing",
+      "model_id": "baseline",
+      "model_version": "v1",
+      "dataset_ref": "support-routing-heldout-v1",
+      "evidence_ref": "local:support-routing-batch-v1",
+      "samples": [
+        {
+          "task_type": "binary_classification",
+          "observation_id": "observation-1",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 1,
+          "predicted": 1
+        },
+        {
+          "task_type": "binary_classification",
+          "observation_id": "observation-2",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 0,
+          "predicted": 0
+        },
+        {
+          "task_type": "binary_classification",
+          "observation_id": "observation-3",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 1,
+          "predicted": 1
+        },
+        {
+          "task_type": "binary_classification",
+          "observation_id": "observation-4",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 0,
+          "predicted": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "energy-demand",
+    "manifest": {
+      "project_id": "energy-demand",
+      "model_id": "baseline",
+      "model_version": "v1",
+      "task_type": "regression",
+      "evaluator_id": "regression-mae-v1",
+      "policy_version": "local-demo-v1",
+      "min_samples": 4,
+      "min_positive_samples": 2,
+      "min_f1": null,
+      "max_mae": 0.25,
+      "min_text_score": null,
+      "allow_external_llm": false,
+      "evaluator_config": {}
+    },
+    "batch": {
+      "project_id": "energy-demand",
+      "model_id": "baseline",
+      "model_version": "v1",
+      "dataset_ref": "energy-demand-heldout-v1",
+      "evidence_ref": "local:energy-demand-batch-v1",
+      "samples": [
+        {
+          "task_type": "regression",
+          "observation_id": "observation-1",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 10.0,
+          "predicted": 10.1
+        },
+        {
+          "task_type": "regression",
+          "observation_id": "observation-2",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 12.0,
+          "predicted": 11.9
+        },
+        {
+          "task_type": "regression",
+          "observation_id": "observation-3",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 9.0,
+          "predicted": 9.1
+        },
+        {
+          "task_type": "regression",
+          "observation_id": "observation-4",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "expected": 11.0,
+          "predicted": 10.9
+        }
+      ]
+    }
+  },
+  {
+    "name": "knowledge-assistant",
+    "manifest": {
+      "project_id": "knowledge-assistant",
+      "model_id": "answers",
+      "model_version": "v1",
+      "task_type": "text_generation",
+      "evaluator_id": "text-rubric-llm-v1",
+      "policy_version": "local-text-demo-v1",
+      "min_samples": 2,
+      "min_positive_samples": 5,
+      "min_f1": null,
+      "max_mae": null,
+      "min_text_score": 0.8,
+      "allow_external_llm": true,
+      "evaluator_config": {}
+    },
+    "batch": {
+      "project_id": "knowledge-assistant",
+      "model_id": "answers",
+      "model_version": "v1",
+      "dataset_ref": "knowledge-assistant-small-demo",
+      "evidence_ref": "local:knowledge-assistant-small-demo",
+      "samples": [
+        {
+          "task_type": "text_generation",
+          "observation_id": "qa-1",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "prompt": "What is 2 + 2?",
+          "output": "4",
+          "reference": "4",
+          "rubric": "Score correctness against the reference; do not reward extra unsupported claims."
+        },
+        {
+          "task_type": "text_generation",
+          "observation_id": "qa-2",
+          "observed_at": "2026-09-30T00:00:00Z",
+          "prompt": "Name the first month of the year.",
+          "output": "January",
+          "reference": "January",
+          "rubric": "Score correctness against the reference; do not reward extra unsupported claims."
+        }
+      ]
+    }
+  }
+]

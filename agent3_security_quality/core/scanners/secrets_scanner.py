@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from agent3_security_quality.core.errors import ScannerUnavailableError
-from agent3_security_quality.core.schemas import SecurityResults
+from agent3_security_quality.core.schemas import Finding, SecurityResults
 
 
 def run(source: str = ".", report_path: str = "gitleaks-report.json") -> SecurityResults:
@@ -38,4 +38,20 @@ def run(source: str = ".", report_path: str = "gitleaks-report.json") -> Securit
         secrets_found=len(findings),
         highest_cvss=0.0,
         policy_exception_required=False,
+        # Deliberately omits gitleaks' "Secret"/"Match" fields: the report
+        # must say where a secret is, never repeat it.
+        findings=[
+            Finding(
+                scanner="gitleaks",
+                rule=f.get("RuleID", ""),
+                message=(
+                    f"{f.get('Description', 'secret detected')} "
+                    f"(commit {f.get('Commit', '')[:8]}, author {f.get('Author', '')})"
+                ),
+                file=f.get("File", ""),
+                line=f.get("StartLine"),
+                severity="secret",
+            )
+            for f in findings
+        ],
     )

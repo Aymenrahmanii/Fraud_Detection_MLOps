@@ -1,0 +1,37 @@
+{
+  "project_id": "support-routing-metrics",
+  "model_id": "router",
+  "model_version": "v2",
+  "task_type": "binary_classification",
+  "evaluator_id": "metric-policy-v2",
+  "policy_version": "synthetic-multimetric-v2",
+  "min_samples": 4,
+  "metric_policy": {
+    "schema_version": "2",
+    "min_positive_samples": 2,
+    "min_negative_samples": 2,
+    "min_outcome_coverage": 0.7,
+    "gates": [
+      {
+        "metric_id": "binary.recall.v1",
+        "operator": "gte",
+        "threshold": 0.8
+      },
+      {
+        "metric_id": "binary.precision.v1",
+        "operator": "gte",
+        "threshold": 0.6
+      },
+      {
+        "metric_id": "binary.roc_auc.v1",
+        "operator": "gte",
+        "threshold": 0.8
+      },
+      {
+        "metric_id": "binary.brier.v1",
+        "operator": "lte",
+        "threshold": 0.2
+      }
+    ]
+  }
+}

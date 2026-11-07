@@ -25,6 +25,7 @@ import sys
 from unittest.mock import MagicMock
 
 import numpy as np
+import pytest
 
 
 def _install_mlflow_stub() -> None:
@@ -34,7 +35,12 @@ def _install_mlflow_stub() -> None:
         return
 
     fake_loaded_model = MagicMock()
-    fake_loaded_model.predict.return_value = np.array([0])
+    # Concrete attributes survive pytest's static monkeypatch restoration;
+    # lazily created MagicMock children can otherwise disappear between tests.
+    fake_loaded_model.predict = MagicMock(return_value=np.array([0]))
+    fake_loaded_model.unwrap_python_model = MagicMock(
+        side_effect=NotImplementedError("No probability adapter in the API contract stub")
+    )
 
     mlflow_module = MagicMock(name="mlflow_stub")
     mlflow_module.pyfunc.load_model = MagicMock(return_value=fake_loaded_model)
@@ -44,3 +50,19 @@ def _install_mlflow_stub() -> None:
 
 
 _install_mlflow_stub()
+
+
+@pytest.fixture(autouse=True)
+def isolate_prediction_log(tmp_path):
+    from API.main import app, get_prediction_log
+    from API.telemetry.contracts import Scope
+    from API.telemetry.store import SQLitePredictionLog
+
+    prediction_log = SQLitePredictionLog(
+        tmp_path / "predictions.sqlite3", Scope(), "a" * 64
+    )
+    previous = app.dependency_overrides.copy()
+    app.dependency_overrides[get_prediction_log] = lambda: prediction_log
+    yield prediction_log
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(previous)

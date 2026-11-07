@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "MetricBaseline": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ref": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Evidence Ref",
+          "type": "string"
+        },
+        "max_degradation": {
+          "minimum": 0,
+          "title": "Max Degradation",
+          "type": "number"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "evidence_ref",
+        "max_degradation"
+      ],
+      "title": "MetricBaseline",
+      "type": "object"
+    },
+    "MetricGate": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetricBaseline"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "metric_id": {
+          "maxLength": 160,
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+\\.v[1-9][0-9]*$",
+          "title": "Metric Id",
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "#/$defs/MetricOperator"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric_id",
+        "operator",
+        "threshold"
+      ],
+      "title": "MetricGate",
+      "type": "object"
+    },
+    "MetricOperator": {
+      "enum": [
+        "gte",
+        "lte"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "degradation": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Degradation"
+    },
+    "gate": {
+      "$ref": "#/$defs/MetricGate"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "UNAVAILABLE"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "unavailable_reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unavailable Reason"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    }
+  },
+  "required": [
+    "gate",
+    "value",
+    "status"
+  ],
+  "title": "MetricGateResult",
+  "type": "object"
+}

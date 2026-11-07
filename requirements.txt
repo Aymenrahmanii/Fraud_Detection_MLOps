@@ -1,3 +1,4 @@
+-c agent6_mlops_lifecycle/constraints-model.txt
 
 
 
@@ -16,3 +17,9 @@ uvicorn
 pydantic
 prometheus-fastapi-instrumentator
 seaborn
+
+# Producer-local .env loading for prediction telemetry
+python-dotenv>=1,<2
+
+# Self-contained Agent 6 runtime (other agents remain independent).
+-r agent6_mlops_lifecycle/requirements.txt

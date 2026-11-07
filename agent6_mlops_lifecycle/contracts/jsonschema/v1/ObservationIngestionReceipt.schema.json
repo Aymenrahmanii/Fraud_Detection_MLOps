@@ -1,0 +1,282 @@
+{
+  "$defs": {
+    "ObservationIngestionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "dataset_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Dataset Ref",
+          "type": "string"
+        },
+        "model_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Model Version",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tenant_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "window_end": {
+          "format": "date-time",
+          "title": "Window End",
+          "type": "string"
+        },
+        "window_start": {
+          "format": "date-time",
+          "title": "Window Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "project_id",
+        "model_id",
+        "model_version",
+        "dataset_ref",
+        "window_start",
+        "window_end",
+        "as_of"
+      ],
+      "title": "ObservationIngestionRequest",
+      "type": "object"
+    },
+    "ObservationIngestionSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "available_prediction_count": {
+          "minimum": 0,
+          "title": "Available Prediction Count",
+          "type": "integer"
+        },
+        "duplicate_outcome_count": {
+          "minimum": 0,
+          "title": "Duplicate Outcome Count",
+          "type": "integer"
+        },
+        "duplicate_prediction_count": {
+          "minimum": 0,
+          "title": "Duplicate Prediction Count",
+          "type": "integer"
+        },
+        "late_outcome_count": {
+          "minimum": 0,
+          "title": "Late Outcome Count",
+          "type": "integer"
+        },
+        "late_prediction_count": {
+          "minimum": 0,
+          "title": "Late Prediction Count",
+          "type": "integer"
+        },
+        "matched_count": {
+          "minimum": 0,
+          "title": "Matched Count",
+          "type": "integer"
+        },
+        "outcome_coverage": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Outcome Coverage",
+          "type": "number"
+        },
+        "outcome_source_ref": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Outcome Source Ref",
+          "type": "string"
+        },
+        "pending_observation_ids": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20000,
+          "title": "Pending Observation Ids",
+          "type": "array"
+        },
+        "prediction_count": {
+          "minimum": 0,
+          "title": "Prediction Count",
+          "type": "integer"
+        },
+        "prediction_source_ref": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Prediction Source Ref",
+          "type": "string"
+        },
+        "window_prediction_count": {
+          "minimum": 0,
+          "title": "Window Prediction Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prediction_source_ref",
+        "outcome_source_ref",
+        "prediction_count",
+        "window_prediction_count",
+        "available_prediction_count",
+        "matched_count",
+        "late_prediction_count",
+        "late_outcome_count",
+        "duplicate_prediction_count",
+        "duplicate_outcome_count",
+        "pending_observation_ids",
+        "outcome_coverage"
+      ],
+      "title": "ObservationIngestionSummary",
+      "type": "object"
+    },
+    "StoredEvaluationReference": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Dataset Ref",
+          "type": "string"
+        },
+        "evidence_ref": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Evidence Ref",
+          "type": "string"
+        },
+        "model_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Model Version",
+          "type": "string"
+        },
+        "policy_fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Policy Fingerprint",
+          "type": "string"
+        },
+        "policy_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tenant_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "window_end": {
+          "format": "date-time",
+          "title": "Window End",
+          "type": "string"
+        },
+        "window_start": {
+          "format": "date-time",
+          "title": "Window Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "project_id",
+        "model_id",
+        "model_version",
+        "policy_version",
+        "policy_fingerprint",
+        "dataset_ref",
+        "window_start",
+        "window_end",
+        "evidence_ref"
+      ],
+      "title": "StoredEvaluationReference",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "query": {
+      "$ref": "#/$defs/ObservationIngestionRequest"
+    },
+    "reference": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StoredEvaluationReference"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "STORED",
+        "INSUFFICIENT_EVIDENCE"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/ObservationIngestionSummary"
+    }
+  },
+  "required": [
+    "query",
+    "summary",
+    "status",
+    "reference"
+  ],
+  "title": "ObservationIngestionReceipt",
+  "type": "object"
+}

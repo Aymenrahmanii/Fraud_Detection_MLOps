@@ -502,3 +502,9 @@ The fraud detection model is built using a **custom pipeline** with multiple sta
 * [LinkedIn](https://www.linkedin.com/in/mohitgupta012/)
 
 Feel free to connect for feedback, contributions, or collaborations.
+
+## Agent 6 ? autonomous MLOps lifecycle
+
+Agent 6 monitors the existing API and Streamlit artifacts, joins verified outcomes, evaluates drift and quality, and automatically trains and registers guarded replacement candidates. Its private configuration and implementation are isolated in `agent6_mlops_lifecycle/`. Deployment and rollback use an explicit handoff to the deployment agent.
+
+See the [Agent 6 setup, architecture and verification guide](agent6_mlops_lifecycle/README.md). After installation, run `python -m agent6_mlops_lifecycle run --open-browser`; the original UI opens on port 8521 and the Agent 6 dashboard on port 8026.

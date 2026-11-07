@@ -1,0 +1,317 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "MetricBaseline": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ref": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Evidence Ref",
+          "type": "string"
+        },
+        "max_degradation": {
+          "minimum": 0,
+          "title": "Max Degradation",
+          "type": "number"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "evidence_ref",
+        "max_degradation"
+      ],
+      "title": "MetricBaseline",
+      "type": "object"
+    },
+    "MetricEvaluationPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "gates": {
+          "items": {
+            "$ref": "#/$defs/MetricGate"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Gates",
+          "type": "array"
+        },
+        "max_evidence_age_seconds": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Evidence Age Seconds"
+        },
+        "min_negative_samples": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Min Negative Samples",
+          "type": "integer"
+        },
+        "min_outcome_coverage": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Outcome Coverage"
+        },
+        "min_positive_samples": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Min Positive Samples",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "2",
+          "default": "2",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "gates"
+      ],
+      "title": "MetricEvaluationPolicy",
+      "type": "object"
+    },
+    "MetricGate": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetricBaseline"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "metric_id": {
+          "maxLength": 160,
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+\\.v[1-9][0-9]*$",
+          "title": "Metric Id",
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "#/$defs/MetricOperator"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric_id",
+        "operator",
+        "threshold"
+      ],
+      "title": "MetricGate",
+      "type": "object"
+    },
+    "MetricOperator": {
+      "enum": [
+        "gte",
+        "lte"
+      ],
+      "type": "string"
+    },
+    "TaskType": {
+      "enum": [
+        "binary_classification",
+        "regression",
+        "text_generation",
+        "custom"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "metric_policy": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "evaluator_id": {
+            "const": "metric-policy-v2"
+          }
+        },
+        "required": [
+          "evaluator_id"
+        ]
+      },
+      "then": {
+        "properties": {
+          "allow_external_llm": {
+            "const": false
+          },
+          "evaluator_config": {
+            "maxProperties": 0
+          },
+          "max_mae": {
+            "type": "null"
+          },
+          "metric_policy": {
+            "type": "object"
+          },
+          "min_f1": {
+            "type": "null"
+          },
+          "min_text_score": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "metric_policy"
+        ]
+      }
+    }
+  ],
+  "description": "A project registers the exact model and evaluator policy it wants assessed.",
+  "properties": {
+    "allow_external_llm": {
+      "default": false,
+      "title": "Allow External Llm",
+      "type": "boolean"
+    },
+    "evaluator_config": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Evaluator Config",
+      "type": "object"
+    },
+    "evaluator_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Evaluator Id",
+      "type": "string"
+    },
+    "max_mae": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Mae"
+    },
+    "metric_policy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MetricEvaluationPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "min_f1": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Min F1"
+    },
+    "min_positive_samples": {
+      "default": 5,
+      "minimum": 1,
+      "title": "Min Positive Samples",
+      "type": "integer"
+    },
+    "min_samples": {
+      "default": 30,
+      "minimum": 1,
+      "title": "Min Samples",
+      "type": "integer"
+    },
+    "min_text_score": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Min Text Score"
+    },
+    "model_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Model Id",
+      "type": "string"
+    },
+    "model_version": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "policy_version": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "#/$defs/TaskType"
+    }
+  },
+  "required": [
+    "project_id",
+    "model_id",
+    "model_version",
+    "task_type",
+    "evaluator_id",
+    "policy_version"
+  ],
+  "title": "ProjectManifest",
+  "type": "object"
+}

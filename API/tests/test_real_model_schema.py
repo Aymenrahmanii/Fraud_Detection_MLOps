@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -73,5 +75,26 @@ def test_real_model_accepts_zero_payment_method_age_days():
 
     assert result.returncode == 0, (
         f"real model prediction failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+    assert result.stdout.strip().splitlines()[-1] in ("0", "1")
+
+
+@pytest.mark.parametrize("missing_feature", ["Category", "isWeekend"])
+def test_real_model_accepts_optional_missing_features(missing_feature):
+    # A clean installation must preserve the saved artifact's supported
+    # missing-value behavior, including nullable categorical interactions.
+    payload = {
+        "Category": "shopping",
+        "paymentMethod": "paypal",
+        "isWeekend": 0.0,
+        "numItems": 4,
+        "localTime": 4.742303,
+        "paymentMethodAgeDays": 0.0,
+        "accountAgeDays": 1,
+    }
+    payload[missing_feature] = None
+    result = _predict_in_subprocess(payload)
+    assert result.returncode == 0, (
+        f"optional missing feature failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
     assert result.stdout.strip().splitlines()[-1] in ("0", "1")

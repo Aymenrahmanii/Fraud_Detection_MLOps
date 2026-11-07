@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "MetricOperator": {
+      "enum": [
+        "gte",
+        "lte"
+      ],
+      "type": "string"
+    },
+    "TaskType": {
+      "enum": [
+        "binary_classification",
+        "regression",
+        "text_generation",
+        "custom"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "direction": {
+      "$ref": "#/$defs/MetricOperator"
+    },
+    "maximum": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Maximum"
+    },
+    "metric_id": {
+      "maxLength": 160,
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+\\.v[1-9][0-9]*$",
+      "title": "Metric Id",
+      "type": "string"
+    },
+    "minimum": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Minimum"
+    },
+    "requires_positive_probability": {
+      "default": false,
+      "title": "Requires Positive Probability",
+      "type": "boolean"
+    },
+    "task_types": {
+      "items": {
+        "$ref": "#/$defs/TaskType"
+      },
+      "minItems": 1,
+      "title": "Task Types",
+      "type": "array"
+    },
+    "units": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Units",
+      "type": "string"
+    }
+  },
+  "required": [
+    "metric_id",
+    "task_types",
+    "direction",
+    "description",
+    "units"
+  ],
+  "title": "MetricDefinition",
+  "type": "object"
+}

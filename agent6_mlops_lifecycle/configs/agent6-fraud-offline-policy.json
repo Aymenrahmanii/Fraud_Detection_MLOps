@@ -1,0 +1,28 @@
+{
+  "schema_version": "2",
+  "gates": [
+    {
+      "metric_id": "binary.precision.v1",
+      "operator": "gte",
+      "threshold": 0.8
+    },
+    {
+      "metric_id": "binary.recall.v1",
+      "operator": "gte",
+      "threshold": 0.8
+    },
+    {
+      "metric_id": "binary.f1.v1",
+      "operator": "gte",
+      "threshold": 0.8
+    },
+    {
+      "metric_id": "binary.balanced_accuracy.v1",
+      "operator": "gte",
+      "threshold": 0.8
+    }
+  ],
+  "min_positive_samples": 5,
+  "min_negative_samples": 30,
+  "min_outcome_coverage": 1.0
+}
