@@ -11,6 +11,7 @@ from agent4_deployment_recovery.core.schemas import (
     Identifier,
     KubernetesTarget,
     NonEmptyStr,
+    OperationType,
     RollbackScope,
     Sha256Hex,
     StrictModel,
@@ -286,8 +287,12 @@ class ExecutionEventV1(StrictModel):
     causation_id: Identifier | None = None
     trace_id: Identifier
     idempotency_key: Identifier
+    operation_type: OperationType
+    target_identity_hash: Sha256Hex
+    previous_state: NonEmptyStr | None = None
     state: NonEmptyStr
     outcome: ExecutionEventOutcome
+    verification_verdict: VerificationVerdict | None = None
     evidence_refs: tuple[Sha256Hex, ...] = ()
     occurred_at: datetime
     audit_chain: AuditChainReference

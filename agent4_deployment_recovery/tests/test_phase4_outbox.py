@@ -1,5 +1,6 @@
 import pytest
 
+from agent4_deployment_recovery.core.canonical import canonical_sha256
 from agent4_deployment_recovery.core.planner import create_plan
 from agent4_deployment_recovery.core.schemas import ExecutionState
 from agent4_deployment_recovery.persistence.sqlite_journal import SQLiteExecutionJournal
@@ -25,6 +26,12 @@ def test_outbox_is_hash_linked_and_survives_process_restart(
     second = restarted.read_outbox()
     assert first == second
     assert [item.event.state for item in second] == ["RECEIVED", "AUTHORIZED"]
+    assert [item.event.previous_state for item in second] == [None, "RECEIVED"]
+    assert all(item.event.operation_type == "DEPLOY_IMAGE_DIGEST" for item in second)
+    assert all(
+        item.event.target_identity_hash == canonical_sha256(plan.target)
+        for item in second
+    )
     assert all(
         item.event.audit_chain.event_hash
         == restarted.audit_events(record.execution_id)[index]["event_hash"]

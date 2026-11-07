@@ -29,6 +29,7 @@ from agent4_deployment_recovery.core.authorization import (
 from agent4_deployment_recovery.core.canonical import canonical_json, canonical_sha256
 from agent4_deployment_recovery.core.dry_run import server_side_dry_run
 from agent4_deployment_recovery.core.errors import (
+    AuditIntegrityError,
     AuthorizationDeniedError,
     KubernetesAdapterError,
     KubernetesConnectivityError,
@@ -295,6 +296,20 @@ class ExecutionCoordinator:
             operator_intervention_required=operator,
         )
 
+    def _integrity_failure(
+        self, record: ExecutionRecord, *, boundary: str
+    ) -> CoordinatorResult | None:
+        """Block side effects when persisted execution evidence is inconsistent."""
+        try:
+            self._journal.assert_audit_integrity(record.execution_id)
+        except AuditIntegrityError as exc:
+            return self._result(
+                record,
+                f"audit integrity failure at {boundary}: {self._reason(str(exc))}",
+                operator=True,
+            )
+        return None
+
     def _permit(
         self,
         operation: AuthorizedOperation,
@@ -489,6 +504,11 @@ class ExecutionCoordinator:
         cancelled: Callable[[], bool] | None,
         reuse_external_authorization: bool = False,
     ) -> CoordinatorResult:
+        integrity = self._integrity_failure(
+            record, boundary="forward pre-authorization"
+        )
+        if integrity is not None:
+            return integrity
         try:
             _, permit = self._permit(
                 operation,
@@ -513,7 +533,15 @@ class ExecutionCoordinator:
                 record, ExecutionState.FAILED, reason=self._reason(str(exc))
             )
             return self._result(record, str(exc))
+        integrity = self._integrity_failure(
+            record, boundary="forward post-authorization"
+        )
+        if integrity is not None:
+            return integrity
         record = self._transition(record, ExecutionState.EXECUTING)
+        integrity = self._integrity_failure(record, boundary="forward mutation")
+        if integrity is not None:
+            return integrity
         try:
             mutation = self._mutation.apply_validated_patch(
                 operation.target, artifact, permit
@@ -706,6 +734,9 @@ class ExecutionCoordinator:
         *,
         reason: str,
     ) -> CoordinatorResult:
+        integrity = self._integrity_failure(record, boundary="rollback preparation")
+        if integrity is not None:
+            return integrity
         scope = operation.approval.rollback_scope
         try:
             operation.ensure_fresh(at=self._now())
@@ -737,7 +768,15 @@ class ExecutionCoordinator:
                 reason=self._reason(f"{reason}; rollback blocked: {exc}"),
             )
             return self._result(record, record.failure_reason or reason, operator=True)
+        integrity = self._integrity_failure(
+            record, boundary="rollback post-authorization"
+        )
+        if integrity is not None:
+            return integrity
         record = self._transition(record, ExecutionState.ROLLING_BACK)
+        integrity = self._integrity_failure(record, boundary="rollback mutation")
+        if integrity is not None:
+            return integrity
         try:
             result = self._mutation.apply_validated_patch(
                 operation.target, rollback, permit
@@ -869,6 +908,9 @@ class ExecutionCoordinator:
         signed_authorization: SignedAuthorizationEnvelopeV1 | None,
         cancelled: Callable[[], bool] | None,
     ) -> CoordinatorResult:
+        integrity = self._integrity_failure(record, boundary="restart/resume")
+        if integrity is not None:
+            return integrity
         if is_terminal(record.state):
             return self._result(
                 record, "idempotent replay returned the existing terminal result"

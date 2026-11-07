@@ -3,7 +3,7 @@
 The adapters deliberately return evidence, never authorization decisions.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import Field, model_validator
@@ -15,11 +15,23 @@ from agent4_deployment_recovery.core.schemas import (
     MAX_REPLICAS,
     KubernetesTarget,
     NonEmptyStr,
+    NoOp,
     OperationType,
     ScaleReplicas,
     SetContainerResources,
     StrictModel,
 )
+
+
+class Agent3Finding(StrictModel):
+    """Redacted finding metadata from the current Agent 3 contract."""
+
+    scanner: NonEmptyStr
+    rule: NonEmptyStr
+    message: NonEmptyStr
+    file: str = Field(default="", max_length=1024)
+    line: int | None = Field(default=None, ge=1)
+    severity: str = Field(default="", max_length=32)
 
 
 class Agent3TestResults(StrictModel):
@@ -29,12 +41,14 @@ class Agent3TestResults(StrictModel):
     skipped: int = Field(ge=0)
     coverage_pct: float = Field(ge=0, le=100)
     flaky_detected: int = Field(default=0, ge=0)
+    findings: tuple[Agent3Finding, ...] = ()
 
 
 class Agent3QualityResults(StrictModel):
     gate: Literal["PASSED", "FAILED"]
     new_critical_issues: int = Field(default=0, ge=0)
     duplication_pct: float = Field(default=0, ge=0, le=100)
+    findings: tuple[Agent3Finding, ...] = ()
 
 
 class Agent3SecurityResults(StrictModel):
@@ -44,6 +58,7 @@ class Agent3SecurityResults(StrictModel):
     secrets_found: int = Field(default=0, ge=0)
     highest_cvss: float = Field(default=0, ge=0, le=10)
     policy_exception_required: bool = False
+    findings: tuple[Agent3Finding, ...] = ()
 
 
 class Agent3ArtifactRef(StrictModel):
@@ -217,7 +232,20 @@ class TrustedArtifactProvenance(StrictModel):
     evidence_reference: NonEmptyStr | None = None
     image: NonEmptyStr
     digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    source_revision: NonEmptyStr
+    issued_at: datetime
+    expires_at: datetime
     reason: NonEmptyStr
+
+    @model_validator(mode="after")
+    def validate_freshness_window(self):
+        for field_name in ("issued_at", "expires_at"):
+            value = getattr(self, field_name)
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise ValueError(f"{field_name} must be timezone-aware")
+        if self.expires_at <= self.issued_at:
+            raise ValueError("provenance expiry must follow issuance")
+        return self
 
 
 @runtime_checkable
@@ -233,6 +261,8 @@ class Agent3DeploymentMetadata(StrictModel):
     correlation_evidence_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     decision: Literal["ALLOW_WITH_WARNING", "ALLOW"]
     commit: NonEmptyStr
+    provenance_issued_at: datetime
+    provenance_expires_at: datetime
     expected_image: NonEmptyStr
     trusted_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     provenance_verifier_id: NonEmptyStr
@@ -244,7 +274,9 @@ def translate_agent3_assessment(
     payload_json: str,
     *,
     expected_image: str,
+    expected_source_revision: str,
     provenance_verifier: Agent3ProvenanceVerifier | None = None,
+    at: datetime | None = None,
 ) -> Agent3DeploymentMetadata:
     """Translate Agent 3 evidence without treating its decision as authorization."""
     assessment = Agent3ReleaseAssessmentV1.model_validate_json(payload_json)
@@ -252,11 +284,19 @@ def translate_agent3_assessment(
         raise IntegrationContractError("Agent 3 BLOCK assessment rejects this release")
     if not assessment.artifact.digest:
         raise IntegrationContractError("Agent 3 assessment is missing an image digest")
+    if assessment.commit != expected_source_revision:
+        raise IntegrationContractError(
+            "Agent 3 assessment does not match the intended source revision"
+        )
     if provenance_verifier is None:
         raise IntegrationContractError(
             "trusted CI artifact provenance is not configured"
         )
     provenance = provenance_verifier.verify(assessment, expected_image=expected_image)
+    checked_at = at or datetime.now(UTC)
+    if checked_at.tzinfo is None or checked_at.utcoffset() is None:
+        raise IntegrationContractError("provenance check time must be timezone-aware")
+    checked_at = checked_at.astimezone(UTC)
     expected_digest = expected_image.partition("@")[2]
     if not expected_digest.startswith("sha256:"):
         raise IntegrationContractError("expected deployment image is not digest-pinned")
@@ -265,16 +305,23 @@ def translate_agent3_assessment(
         or provenance.evidence_reference is None
         or provenance.image != expected_image
         or provenance.digest != expected_digest
+        or provenance.source_revision != expected_source_revision
         or assessment.artifact.digest != expected_digest
     ):
         raise IntegrationContractError(
             "Agent 3 artifact digest or trusted CI provenance does not match deployment"
         )
+    if checked_at < provenance.issued_at.astimezone(UTC):
+        raise IntegrationContractError("trusted CI provenance is not yet valid")
+    if checked_at >= provenance.expires_at.astimezone(UTC):
+        raise IntegrationContractError("trusted CI provenance is expired")
     return Agent3DeploymentMetadata(
         assessment_id=assessment.assessment_id,
         correlation_evidence_hash=canonical_sha256(assessment),
         decision=assessment.decision,
         commit=assessment.commit,
+        provenance_issued_at=provenance.issued_at,
+        provenance_expires_at=provenance.expires_at,
         expected_image=expected_image,
         trusted_digest=expected_digest,
         provenance_verifier_id=provenance.verifier_id,
@@ -296,7 +343,7 @@ class Agent5OperationProposal(StrictModel):
     source_message_id: NonEmptyStr
     source_content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     target: KubernetesTarget | None = None
-    operation: ScaleReplicas | SetContainerResources | None = None
+    operation: ScaleReplicas | SetContainerResources | NoOp | None = None
     requires_independent_authorization: Literal[True] = True
     constitutes_authorization: Literal[False] = False
 
@@ -323,8 +370,6 @@ def translate_agent5_recommendation(
         "source_message_id": source.message_id,
         "source_content_hash": canonical_sha256(source),
     }
-    if action.action == "NO_CHANGE":
-        return Agent5OperationProposal(**common)
     if resolver is None:
         raise IntegrationContractError(
             "Agent 5 mutation proposal requires workload resolution"
@@ -343,7 +388,12 @@ def translate_agent5_recommendation(
         raise IntegrationContractError(
             "resolved target namespace does not match recommendation"
         )
-    if action.action == "SCALE_REPLICAS":
+    if action.action == "NO_CHANGE":
+        operation = NoOp(
+            operation_type=OperationType.NO_OP,
+            reason="Agent 5 recommendation explicitly requested NO_CHANGE",
+        )
+    elif action.action == "SCALE_REPLICAS":
         if action.from_replicas is None or action.to_replicas is None:
             raise IntegrationContractError(
                 "scale recommendation omitted replica bounds"

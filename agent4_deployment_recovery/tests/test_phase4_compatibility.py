@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from agent4_deployment_recovery.adapters.compatibility import (
 from agent4_deployment_recovery.core.errors import IntegrationContractError
 from agent4_deployment_recovery.core.schemas import (
     KubernetesTarget,
+    NoOp,
     ScaleReplicas,
     SetContainerResources,
 )
@@ -18,18 +20,37 @@ from agent4_deployment_recovery.core.schemas import (
 FIXTURES = Path(__file__).parent / "fixtures"
 DIGEST = "sha256:" + "a" * 64
 IMAGE = f"registry.example/fraud-api@{DIGEST}"
+SOURCE_REVISION = "56c48f9667017db3e401227a04dafb0598df2f9b"
 
 
 class TrustedProvenance:
     def verify(self, assessment, *, expected_image):
-        del assessment
         return TrustedArtifactProvenance(
             trusted=True,
             verifier_id="trusted-ci-attestation",
             evidence_reference="oci://attestations/fraud-api/001",
             image=expected_image,
             digest=DIGEST,
+            source_revision=assessment.commit,
+            issued_at=datetime.now(UTC) - timedelta(minutes=1),
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
             reason="digest and build provenance verified",
+        )
+
+
+class ExpiredProvenance:
+    def verify(self, assessment, *, expected_image):
+        now = datetime.now(UTC)
+        return TrustedArtifactProvenance(
+            trusted=True,
+            verifier_id="trusted-ci-attestation",
+            evidence_reference="oci://attestations/fraud-api/expired",
+            image=expected_image,
+            digest=DIGEST,
+            source_revision=assessment.commit,
+            issued_at=now - timedelta(hours=2),
+            expires_at=now - timedelta(hours=1),
+            reason="expired test provenance",
         )
 
 
@@ -45,6 +66,7 @@ def test_agent3_block_and_missing_digest_fail_closed():
         translate_agent3_assessment(
             _agent3(decision="BLOCK", blocking_reasons=["security gate"]),
             expected_image=IMAGE,
+            expected_source_revision=SOURCE_REVISION,
             provenance_verifier=TrustedProvenance(),
         )
     raw = json.loads(_agent3())
@@ -53,6 +75,7 @@ def test_agent3_block_and_missing_digest_fail_closed():
         translate_agent3_assessment(
             json.dumps(raw),
             expected_image=IMAGE,
+            expected_source_revision=SOURCE_REVISION,
             provenance_verifier=TrustedProvenance(),
         )
 
@@ -61,12 +84,52 @@ def test_agent3_warning_remains_evidence_and_requires_trusted_ci():
     metadata = translate_agent3_assessment(
         _agent3(decision="ALLOW_WITH_WARNING", warnings=["coverage warning"]),
         expected_image=IMAGE,
+        expected_source_revision=SOURCE_REVISION,
         provenance_verifier=TrustedProvenance(),
     )
     assert metadata.decision == "ALLOW_WITH_WARNING"
     assert metadata.requires_independent_authorization is True
     with pytest.raises(IntegrationContractError, match="not configured"):
-        translate_agent3_assessment(_agent3(), expected_image=IMAGE)
+        translate_agent3_assessment(
+            _agent3(), expected_image=IMAGE, expected_source_revision=SOURCE_REVISION
+        )
+
+
+def test_agent3_source_revision_freshness_and_current_findings_schema():
+    payload = json.loads(_agent3())
+    payload["security"]["findings"] = [
+        {
+            "scanner": "gitleaks",
+            "rule": "generic-api-key",
+            "message": "redacted fixture finding",
+            "file": "tests/fixture.py",
+            "line": 7,
+            "severity": "HIGH",
+        }
+    ]
+    metadata = translate_agent3_assessment(
+        json.dumps(payload),
+        expected_image=IMAGE,
+        expected_source_revision=SOURCE_REVISION,
+        provenance_verifier=TrustedProvenance(),
+    )
+    assert metadata.commit == SOURCE_REVISION
+
+    with pytest.raises(IntegrationContractError, match="source revision"):
+        translate_agent3_assessment(
+            _agent3(),
+            expected_image=IMAGE,
+            expected_source_revision="different-commit",
+            provenance_verifier=TrustedProvenance(),
+        )
+
+    with pytest.raises(IntegrationContractError, match="expired"):
+        translate_agent3_assessment(
+            _agent3(),
+            expected_image=IMAGE,
+            expected_source_revision=SOURCE_REVISION,
+            provenance_verifier=ExpiredProvenance(),
+        )
 
 
 class Resolver:
@@ -109,9 +172,11 @@ def test_agent5_ambiguous_target_and_no_change_behavior():
     with pytest.raises(IntegrationContractError, match="ambiguous"):
         translate_agent5_recommendation(_agent5_scale(), resolver=Resolver(2))
     no_change = (FIXTURES / "agent5_resource_recommendation.json").read_text()
-    proposal = translate_agent5_recommendation(no_change)
-    assert proposal.operation is None
-    assert proposal.target is None
+    proposal = translate_agent5_recommendation(no_change, resolver=Resolver())
+    assert isinstance(proposal.operation, NoOp)
+    assert proposal.target is not None
+    with pytest.raises(IntegrationContractError, match="resolution"):
+        translate_agent5_recommendation(no_change)
 
 
 def test_agent5_memory_increase_resolves_exact_target_and_remains_advisory():

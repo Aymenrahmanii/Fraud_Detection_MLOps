@@ -5,7 +5,10 @@ import pytest
 from pydantic import ValidationError
 
 from agent4_deployment_recovery.core.authorization import AuthorizationDecision
-from agent4_deployment_recovery.core.coordinator import ExecutionCoordinator
+from agent4_deployment_recovery.core.coordinator import (
+    FORWARD_ARTIFACT,
+    ExecutionCoordinator,
+)
 from agent4_deployment_recovery.core.errors import (
     AuthorizationDeniedError,
     JournalConflictError,
@@ -160,6 +163,30 @@ class UncertainRollbackMutation(StatefulMutation):
                 reason="injected uncertain rollback response",
             )
         return super().apply_validated_patch(target, artifact, permit)
+
+
+class TamperingJournal(SQLiteExecutionJournal):
+    """Test-only journal that corrupts a delivery linkage after patch storage."""
+
+    def record_artifact(
+        self, execution_id, artifact_type, content_text, content_hash, **kwargs
+    ):
+        result = super().record_artifact(
+            execution_id, artifact_type, content_text, content_hash, **kwargs
+        )
+        if artifact_type == FORWARD_ARTIFACT:
+            connection = self._connect()
+            try:
+                connection.execute(
+                    "UPDATE outbox_delivery_state SET delivery_id = ? "
+                    "WHERE outbox_id = (SELECT MIN(outbox_id) "
+                    "FROM outbox_delivery_state)",
+                    (f"tampered-{execution_id}",),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+        return result
 
 
 class SequenceRolloutObserver:
@@ -571,3 +598,66 @@ def test_restart_completes_reconciled_rollback_without_retry(
         PatchDirection.FORWARD,
         PatchDirection.ROLLBACK,
     ]
+
+
+def test_audit_tampering_blocks_forward_mutation(
+    tmp_path, operation_factory, snapshot_factory, preflight_policy
+):
+    operation = operation_factory()
+    journal = TamperingJournal(tmp_path / "tampered.db")
+    coordinator, _, mutation, _ = _coordinator(
+        tmp_path,
+        snapshot_factory(),
+        preflight_policy,
+        authorization=TestAuthorization(),
+        verifier=TestRecoveryVerifier(VerificationVerdict.VERIFIED),
+        journal=journal,
+    )
+
+    result = coordinator.execute(
+        operation, create_plan(operation), execution_id="EXEC-tampered-forward"
+    )
+
+    assert result.operator_intervention_required is True
+    assert "audit integrity" in result.reason.lower()
+    assert mutation.calls == []
+
+
+def test_audit_tampering_blocks_restart_before_any_adapter_call(
+    tmp_path, operation_factory, snapshot_factory, preflight_policy
+):
+    operation = operation_factory()
+    plan = create_plan(operation)
+    journal = SQLiteExecutionJournal(tmp_path / "tampered-restart.db")
+    record, _ = journal.create_execution(
+        plan,
+        execution_id="EXEC-tampered-restart",
+        approval_id=operation.approval.approval_id,
+    )
+    connection = journal._connect()
+    try:
+        connection.execute(
+            "UPDATE outbox_delivery_state SET delivery_id = ?",
+            (f"tampered-{record.execution_id}",),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    inspector = StatefulInspector(snapshot_factory())
+    mutation = StatefulMutation(inspector)
+    coordinator, _, _, _ = _coordinator(
+        tmp_path,
+        inspector.snapshot,
+        preflight_policy,
+        authorization=TestAuthorization(),
+        mutation=mutation,
+        inspector=inspector,
+        journal=journal,
+    )
+
+    result = coordinator.execute(operation, plan, execution_id="ignored")
+
+    assert result.operator_intervention_required is True
+    assert "audit integrity" in result.reason.lower()
+    assert inspector.inspect_calls == 0
+    assert mutation.calls == []

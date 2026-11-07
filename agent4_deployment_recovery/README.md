@@ -60,6 +60,10 @@ manifest execution path.
 - Evidence-only Agent 3 and Agent 5 translators. Agent 3 requires a separate
   trusted-CI provenance verifier for digest deployment; Agent 5 requires an
   exact workload resolver and still produces only a proposed typed operation.
+- Evidence/proposal adapters for the current Agent 1, Agent 2, and Agent 6
+  contracts. Current Agent 1 events remain untrusted evidence; Agent 2 and
+  Agent 6 outputs remain non-authorizing proposals that require exact trusted
+  resolution.
 - Read-only standalone rollback preparation which validates a recoverable
   source execution and forward artifact, proves the current forward state,
   and returns a guarded inverse preview requiring separate authorization.
@@ -177,8 +181,7 @@ global interpreter:
 
 ```powershell
 py -3.12 -m venv .venv-agent4
-.\.venv-agent4\Scripts\python.exe -m pip install -r agent4_deployment_recovery\requirements.txt
-.\.venv-agent4\Scripts\python.exe -m pip install ruff
+.\.venv-agent4\Scripts\python.exe -m pip install --require-hashes -r agent4_deployment_recovery\requirements-ci.txt
 .\.venv-agent4\Scripts\python.exe -m pytest agent4_deployment_recovery\tests -v
 .\.venv-agent4\Scripts\ruff.exe check agent4_deployment_recovery
 .\.venv-agent4\Scripts\python.exe -m pip check
@@ -187,12 +190,24 @@ py -3.12 -m venv .venv-agent4
 `.github/workflows/agent4-quality.yml` runs Python 3.12 tests, Ruff, and
 dependency consistency checks only for Agent 4 path changes. It has read-only
 repository permission and contains no deployment, image publishing, cluster
-connection, production secret, or integration-test opt-in.
+connection, production secret, or integration-test opt-in. Action revisions
+are pinned by commit SHA and dependencies are installed from the hash lock.
 
 ## Simulation
 
 Simulation uses only injected fakes and temporary SQLite files. It does not
 claim real-cluster authorization, admission, rollout, or Agent 1 verification.
+
+For one readable end-to-end report:
+
+```powershell
+.\.venv-agent4\Scripts\python.exe -m agent4_deployment_recovery.demo
+```
+
+It runs successful deployment, failed rollout with exact rollback, and restart
+reconciliation scenarios through the production coordinator and journal. All
+external boundaries are explicit offline fakes and the report states that no
+cluster or production authorization was used.
 
 ```powershell
 python -m pytest agent4_deployment_recovery/tests/test_phase3_coordinator.py -v
@@ -274,9 +289,16 @@ skipped in normal local and CI runs and must never target production.
 - Agent 3 must provide its current release-assessment JSON; CI must separately
   attest the exact immutable digest. `ALLOW` and `ALLOW_WITH_WARNING` are never
   authorization, while `BLOCK` always stops translation.
+- Agent 2 may provide its current diagnosis/action intent. Only exact supported
+  actions can become proposals; underspecified rollback/scale and unsupported
+  restart/traffic operations fail closed.
 - Agent 5 must provide its current recommendation JSON. The Orchestrator must
   resolve its logical service to exactly one immutable Kubernetes target and
-  independently authorize any proposal. `NO_CHANGE` never becomes a mutation.
+  independently authorize any proposal. `NO_CHANGE` becomes an explicit
+  authorized/journaled `NO_OP`, never a mutation.
+- Agent 6 model handoffs require a trusted candidate-to-immutable-image
+  attestation and exact serving target. Model rollback requires a trusted
+  version-to-Agent-4-execution binding. No callback transport is implemented.
 - Agent 1 must provide an authenticated signed `VERIFIED`, `FAILED`, or
   `INCONCLUSIVE` response bound to the persisted request and target. Missing
   trusted transport/key configuration yields `UNAVAILABLE`.
@@ -299,6 +321,11 @@ operator configuration distribution, journal migration/backup testing,
 transport observability, SLOs, incident runbooks, recovery drills, and an
 independent security review. Phase 5 is integration-ready for review, not a
 production deployment authorization.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md),
+[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md), [FINAL_AUDIT.md](FINAL_AUDIT.md),
+and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the final design, current
+team-contract status, audit findings, and release gates.
 
 ## Quality commands
 

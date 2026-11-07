@@ -345,6 +345,7 @@ class SQLiteExecutionJournal:
                 sequence=sequence,
                 event_hash=event_hash,
                 occurred_at=timestamp,
+                previous_state=current.state,
                 evidence_refs=(content_hash,),
             )
             connection.commit()
@@ -439,6 +440,7 @@ class SQLiteExecutionJournal:
                 sequence=sequence,
                 event_hash=event_hash,
                 occurred_at=timestamp,
+                previous_state=current.state,
                 evidence_refs=(content_hash,),
             )
             connection.commit()
@@ -571,6 +573,7 @@ class SQLiteExecutionJournal:
         sequence: int,
         event_hash: str,
         occurred_at: datetime,
+        previous_state: ExecutionState | None,
         evidence_refs: tuple[str, ...] = (),
     ) -> None:
         event = ExecutionEventV1(
@@ -581,8 +584,14 @@ class SQLiteExecutionJournal:
             correlation_id=record.correlation_id,
             trace_id=record.trace_id,
             idempotency_key=record.idempotency_key,
+            operation_type=record.operation_type,
+            target_identity_hash=canonical_sha256(record.target),
+            previous_state=previous_state.value if previous_state is not None else None,
             state=record.state.value,
             outcome=self._event_outcome(record.state),
+            verification_verdict=(
+                record.verification.verdict if record.verification is not None else None
+            ),
             evidence_refs=evidence_refs,
             occurred_at=occurred_at,
             audit_chain=AuditChainReference(sequence=sequence, event_hash=event_hash),
@@ -706,6 +715,7 @@ class SQLiteExecutionJournal:
                 sequence=sequence,
                 event_hash=event_hash,
                 occurred_at=timestamp,
+                previous_state=None,
             )
             connection.commit()
             return record, True
@@ -899,6 +909,7 @@ class SQLiteExecutionJournal:
                 sequence=sequence,
                 event_hash=event_hash,
                 occurred_at=timestamp,
+                previous_state=current.state,
                 evidence_refs=evidence_refs,
             )
             connection.commit()
@@ -1232,6 +1243,10 @@ class SQLiteExecutionJournal:
                     or integration.correlation_id != record.correlation_id
                     or integration.trace_id != record.trace_id
                     or integration.idempotency_key != record.idempotency_key
+                    or integration.operation_type != record.operation_type
+                    or integration.target_identity_hash
+                    != canonical_sha256(record.target)
+                    or integration.previous_state != event["from_state"]
                     or integration.state != event["to_state"]
                 ):
                     return False

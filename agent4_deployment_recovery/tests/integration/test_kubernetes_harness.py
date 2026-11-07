@@ -69,6 +69,8 @@ def _scale_operation(snapshot):
         expires_at=now + timedelta(minutes=10),
     )
     operation_id = "OP-K8S-INTEGRATION"
+    synthetic_idempotency = "IDEMP-" + ("0" * 24)
+    synthetic_authorization = "AUTH-" + ("0" * 24)
     receipt = ApprovalReceipt(
         approval_id="APR-K8S-INTEGRATION",
         issuer="integration-test-only",
@@ -86,7 +88,7 @@ def _scale_operation(snapshot):
     )
     return AuthorizedOperation(
         operation_id=operation_id,
-        idempotency_key="IDEMP-K8S-INTEGRATION",
+        idempotency_key=synthetic_idempotency,
         correlation_id="CORR-K8S-INTEGRATION",
         trace_id="TRACE-K8S-INTEGRATION",
         issuer="integration-test-only",
@@ -96,7 +98,7 @@ def _scale_operation(snapshot):
         target=target,
         operation=typed,
         approval=receipt,
-        authorization_token="integration-test-token",
+        authorization_token=synthetic_authorization,
     )
 
 
