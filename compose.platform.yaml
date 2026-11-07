@@ -129,6 +129,8 @@ services:
       <<: *env
       CHECKPOINT_DB_URL: postgresql://aiops:${POSTGRES_PASSWORD:-aiops-dev}@postgres:5432/checkpoints
       HTTP_PORT: "8080"
+      # How long a human has to decide; set it low (e.g. 60) to demonstrate expiry.
+      AIOPS_APPROVAL_TTL_SECONDS: ${AIOPS_APPROVAL_TTL_SECONDS:-600}
     ports: ["127.0.0.1:8080:8080"]
 
   dashboard:
