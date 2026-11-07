@@ -46,6 +46,8 @@ class ActionType(StrEnum):
     TRAFFIC_SHIFT = "TRAFFIC_SHIFT"
     SCALE_REPLICAS = "SCALE_REPLICAS"
     PROMOTE_MODEL = "PROMOTE_MODEL"
+    # Platform addition: Agent 5's memory-limit recommendation (Agent 4 SET_CONTAINER_RESOURCES).
+    INCREASE_MEMORY = "INCREASE_MEMORY"
 
 
 class ResultStatus(StrEnum):

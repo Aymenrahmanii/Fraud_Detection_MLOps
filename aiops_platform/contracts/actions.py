@@ -46,7 +46,13 @@ class ActionRequest(Contract):
         if self.policy_decision is PolicyDecision.APPROVAL_REQUIRED:
             if not self.approval_id or not self.approval_token:
                 raise ValueError("Approval-required requests need an approval ID and token")
-        elif self.approval_id is not None or self.approval_token is not None:
-            raise ValueError("Approval proof is only valid for approval-required requests")
+        elif self.policy_decision is PolicyDecision.BLOCK:
+            if self.approval_id is not None or self.approval_token is not None:
+                raise ValueError("A blocked action cannot carry approval proof")
+        elif (self.approval_id is None) != (self.approval_token is None):
+            # Platform change: Agent 4 mutates nothing without a signed permit, so an
+            # AUTO request carries the HITL Service's policy permit (AUTOMATED_POLICY
+            # provenance, which Agent 4 still refuses in production).
+            raise ValueError("A policy permit needs both its approval ID and token")
         # Presence is not verification: the executor must validate scope/signature/expiry.
         return self

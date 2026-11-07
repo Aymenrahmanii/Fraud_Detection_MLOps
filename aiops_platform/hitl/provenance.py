@@ -67,7 +67,9 @@ class HitlProvenanceVerifier:
             return "approval evidence hash does not match the record"
         if provenance.get("method") != reference.method.value:
             return "approval method does not match the record"
-        plan = row["request_json"]["plan"]
+        plan = row["request_json"].get("plan")
+        if not plan:
+            return "approval was a governance decision, not an execution approval"
         op = plan["operation"]
         if (op["operation_id"], op["correlation_id"], op["environment"]) != (
             binding.operation_id,

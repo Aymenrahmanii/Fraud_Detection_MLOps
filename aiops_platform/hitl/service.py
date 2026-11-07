@@ -88,7 +88,9 @@ class ApprovalRequest(BaseModel):
     reason: str
     evidence_summary: tuple[str, ...] = ()
     hitl_triggers: tuple[str, ...] = ()
-    plan: PlanPrepared
+    # The exact Agent 4 plan. None for a governance decision (e.g. model
+    # promotion review) that no executor acts on: no permit is ever signed then.
+    plan: PlanPrepared | None = None
     ttl_seconds: int = Field(default=600, ge=30, le=24 * 3600)
 
 
@@ -146,7 +148,9 @@ class HitlService:
 
     async def create_approval(self, principal: Principal, request: ApprovalRequest) -> ApprovalState:
         self._require_orchestrator(principal)
-        if request.plan.status != "PREPARED" or not request.plan.plan_hash or not request.plan.patch_hash:
+        if request.plan is not None and (
+            request.plan.status != "PREPARED" or not request.plan.plan_hash or not request.plan.patch_hash
+        ):
             raise HitlError("only an exact, dry-run-validated plan can be submitted for approval")
         existing = await self.context.get_approval(self._me, request.approval_id)
         if existing is not None:  # idempotent: the Orchestrator may retry the call
@@ -199,8 +203,9 @@ class HitlService:
         token = None
         if decision == "APPROVE":
             evidence = _evidence_hash(row["request_json"], decision, operator.subject, comment, now)
-            token = self._sign_permit(request, operator.subject, ApprovalMethod.HUMAN_INTERACTIVE, evidence, now)
-            row["token_hash"] = token_hash(token)
+            if request.plan is not None:
+                token = self._sign_permit(request, operator.subject, ApprovalMethod.HUMAN_INTERACTIVE, evidence, now)
+                row["token_hash"] = token_hash(token)
             row["request_json"] = {
                 **row["request_json"],
                 "_provenance": {"evidence_hash": evidence, "method": ApprovalMethod.HUMAN_INTERACTIVE.value, "approved_at": now.isoformat()},
@@ -215,6 +220,8 @@ class HitlService:
         human permit (production); see ARCHITECTURE.md.
         """
         self._require_orchestrator(principal)
+        if request.plan is None:
+            raise HitlError("a policy permit needs an exact Agent 4 plan")
         now = self.clock()
         subject = "policy:auto"
         evidence = _evidence_hash(request.model_dump(mode="json"), "APPROVE", subject, "AUTO", now)

@@ -42,11 +42,13 @@ def task_topic(agent_id: AgentId | str) -> str:
     return f"agent.task.{AgentId(agent_id).value}"
 
 
-TASK_FAILED = "agent.task.failed"
+# A task outcome with no domain event: a failure, or a success with nothing to
+# report (e.g. "no anomaly"). The Orchestrator reads `AgentResult.status`.
+TASK_RESULT = "agent.task.result"
 PLAN_PREPARED = "deployment.plan.prepared"
 
 TOPICS.update({task_topic(agent): ("AGENT_TASK", AgentTask) for agent in AgentId})
-TOPICS[TASK_FAILED] = ("AGENT_TASK_FAILED", AgentResult)
+TOPICS[TASK_RESULT] = ("AGENT_TASK_RESULT", AgentResult)
 TOPICS[PLAN_PREPARED] = ("DEPLOYMENT_PLAN_PREPARED", PlanPrepared)
 
 
