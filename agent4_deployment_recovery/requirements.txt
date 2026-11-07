@@ -1,0 +1,5 @@
+pydantic>=2.0,<3
+pytest>=8.0,<9
+kubernetes>=30,<36
+cryptography>=43,<47
+mcp>=2.0,<3
