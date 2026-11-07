@@ -81,7 +81,8 @@ h3 { font-size: 14px; margin: 16px 0 6px; }
 .pill.ESCALATED, .pill.RELEASE_BLOCKED, .pill.REJECTED, .pill.BLOCK, .pill.EXPIRED { color: var(--bad); }
 .pill.WAITING_FOR_APPROVAL, .pill.APPROVAL_REQUIRED, .pill.WAITING_FOR_HUMAN { color: var(--warn); }
 .stack { display: flex; flex-direction: column; gap: 12px; }
-.approval { border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 8px; padding: 10px 12px; }
+.approval { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.approval .action { color: var(--warn); }
 .approval header { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
 .approval .target { font-weight: 600; }
 .approval .reason { margin: 6px 0; }
