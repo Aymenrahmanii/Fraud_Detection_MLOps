@@ -1,0 +1,21 @@
+# Platform observability (v5 section 18): every platform process exposes /metrics.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: orchestrator
+    static_configs: [{targets: ["orchestrator:8080"]}]
+  - job_name: context-service
+    static_configs: [{targets: ["context:9100"]}]
+  - job_name: hitl-service
+    static_configs: [{targets: ["hitl:9100"]}]
+  - job_name: agents
+    static_configs:
+      - targets:
+          - agent-monitoring:9100
+          - agent-diagnosis:9100
+          - agent-security-quality:9100
+          - agent-deployment-recovery:9100
+          - agent-resource-optimization:9100
+          - agent-mlops-lifecycle:9100

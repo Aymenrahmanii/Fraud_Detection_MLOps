@@ -20,6 +20,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from pydantic import JsonValue
 
@@ -286,7 +287,9 @@ class SimWatcher:
             if service.service_id in self._open:
                 continue  # the same alert is still open
             self._counter += 1
-            incident_id = f"INC-{datetime.now(UTC):%Y%m%d}-{service.service_id}-{self._counter:04d}"
+            # Unique across restarts: a counter alone restarts at 1 and would reuse the ID
+            # of an already-closed incident, so the new outage would be ignored.
+            incident_id = f"INC-{datetime.now(UTC):%Y%m%d%H%M%S}-{service.service_id}-{uuid4().hex[:6]}"
             dep = self._cluster.deployment(service.service_id, service.namespace)
             severity = Severity(self._detector.last_severity.value)
             signals: dict[str, JsonValue] = dict(anomaly.signals)

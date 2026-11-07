@@ -9,19 +9,21 @@ Workers never read the incident context: the task is all they get.
 """
 
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from pydantic import JsonValue
 
-from aiops_platform.bus import EventBus, InMemoryIdempotencyStore, ReliableConsumer, publish
+from aiops_platform.bus import EventBus, InMemoryIdempotencyStore, ReliableConsumer, TransientError, publish
 from aiops_platform.bus.idempotency import IdempotencyStore
 from aiops_platform.context.client import AgentContextPort
 from aiops_platform.contracts.enums import AgentId, ResultStatus
 from aiops_platform.contracts.events import EventEnvelope
 from aiops_platform.contracts.tasks import AgentResult, AgentTask
 from aiops_platform.contracts.topics import TASK_RESULT, TOPICS, task_topic
+from aiops_platform.observability.metrics import PlatformMetrics
 
 log = logging.getLogger(__name__)
 
@@ -78,14 +80,20 @@ class AgentWorker(ABC):
         context: AgentContextPort,
         *,
         idempotency: IdempotencyStore | None = None,
+        metrics: PlatformMetrics | None = None,
     ) -> None:
         self.bus = bus
         self.context = context
         self._idempotency = idempotency or InMemoryIdempotencyStore()
+        self.metrics = metrics or PlatformMetrics()
 
     def subscribe(self) -> None:
         consumer = ReliableConsumer(
-            self.bus, f"worker.{self.agent_id.value}", self._on_task, idempotency=self._idempotency
+            self.bus,
+            f"worker.{self.agent_id.value}",
+            self._on_task,
+            idempotency=self._idempotency,
+            observer=self.metrics.observer(),
         )
         consumer.subscribe([task_topic(self.agent_id)])
 
@@ -98,12 +106,18 @@ class AgentWorker(ABC):
         if task.agent_id is not self.agent_id:
             log.warning("%s ignored a task for %s", self.agent_id, task.agent_id)
             return
+        started = time.perf_counter()
         try:
             output = await self.run(task, envelope)
+        except TransientError:
+            # A dependency outage (Context Service, broker) is not the agent failing:
+            # let ReliableConsumer retry the task with backoff instead of reporting FAILED.
+            raise
         except Exception as exc:  # noqa: BLE001 - report the failure; the Orchestrator replans
             log.exception("%s failed task %s", self.agent_id, task.task_id)
             output = WorkerOutput(result=self.failed(task, f"{type(exc).__name__}: {exc}"))
         result = output.result
+        self.metrics.task_done(self.agent_id.value, task.objective, result.status.value, time.perf_counter() - started)
         succeeded = result.status is ResultStatus.SUCCEEDED
         events = output.events if succeeded else []
         result_type = TOPICS[events[0][0]][0] if events else f"{self.agent_id.value}:{task.objective}"

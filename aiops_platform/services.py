@@ -26,9 +26,17 @@ from aiops_platform.context.service import ContextService, Role
 from aiops_platform.context.store import ContextStore
 from aiops_platform.contracts.enums import AgentId, Environment
 from aiops_platform.contracts.events import ServiceIdentity
+from aiops_platform.observability.metrics import PlatformMetrics, serve_metrics
 from aiops_platform.rpc.identity import Credential, Verifier
 
 log = logging.getLogger("aiops.services")
+
+# One registry per process; scraped by Prometheus (see docker/prometheus.yml).
+METRICS = PlatformMetrics()
+
+
+def expose_metrics() -> None:
+    serve_metrics(METRICS, int(env("METRICS_PORT", "9100")))
 
 
 def env(name: str, default: str | None = None) -> str:
@@ -58,7 +66,9 @@ async def wait_for_file(path: Path, timeout: float = 120) -> Path:
 def make_bus(client_id: str):
     from aiops_platform.bus.kafka import KafkaBus
 
-    return KafkaBus(env("KAFKA_BOOTSTRAP"), client_id=client_id, partitions=int(env("KAFKA_PARTITIONS", "3")))
+    return KafkaBus(
+        env("KAFKA_BOOTSTRAP"), client_id=client_id, partitions=int(env("KAFKA_PARTITIONS", "3")), metrics=METRICS
+    )
 
 
 def make_idempotency():
@@ -90,8 +100,9 @@ async def run_context() -> None:
     store = await ContextStore.connect(
         env("CONTEXT_DB_URL"), LocalObjectStore(env("CONTEXT_OBJECTS_DIR", "/data/evidence"))
     )
+    expose_metrics()
     server = grpc.aio.server()
-    add_context_service(server, ContextService(store), verifier())
+    add_context_service(server, ContextService(store), verifier(), METRICS)
     await serve_grpc(server, env("GRPC_LISTEN", "0.0.0.0:50051"))
 
 
@@ -106,6 +117,7 @@ async def run_hitl() -> None:
     trust.mkdir(parents=True, exist_ok=True)
     (trust / "hitl.pub.pem").write_text(key.public_pem())
     context = GrpcContextService(channel("CONTEXT_TARGET"), Credential.from_env(Role.HITL, "hitl-service"))
+    expose_metrics()
     server = grpc.aio.server()
     add_hitl_service(server, HitlService(context=context, signer=key), verifier())
     await serve_grpc(server, env("GRPC_LISTEN", "0.0.0.0:50052"))
@@ -135,7 +147,7 @@ async def run_orchestrator() -> None:
 
         saver = InMemorySaver()
     orchestrator = OrchestratorService(
-        bus=bus, context=context, hitl=hitl, checkpointer=saver, idempotency=make_idempotency()
+        bus=bus, context=context, hitl=hitl, checkpointer=saver, idempotency=make_idempotency(), metrics=METRICS
     )
     orchestrator.subscribe()
     await bus.start()
@@ -165,7 +177,8 @@ async def run_worker(agent: str) -> None:
 
     context = AgentContext(GrpcContextService(channel("CONTEXT_TARGET"), credential), agent_id)
     bus = make_bus(agent_id.value)
-    kwargs = {"idempotency": make_idempotency()}
+    kwargs = {"idempotency": make_idempotency(), "metrics": METRICS}
+    expose_metrics()
     cluster = None
     if os.environ.get("SIM_CLUSTER_URL"):
         from aiops_platform.sim.remote import RemoteCluster
@@ -266,7 +279,7 @@ async def run_worker(agent: str) -> None:
         from aiops_platform.workers.agent5 import ResourceOptimizationWorker, cluster_metrics
 
         worker = ResourceOptimizationWorker(
-            bus, context, metrics=cluster_metrics(cluster) if cluster else None, **kwargs
+            bus, context, metrics_source=cluster_metrics(cluster) if cluster else None, **kwargs
         )
     else:
         from aiops_platform.workers.agent6 import MLOpsWorker

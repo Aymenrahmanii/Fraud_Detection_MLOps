@@ -54,9 +54,9 @@ def cluster_metrics(cluster) -> MetricsSource:
 class ResourceOptimizationWorker(AgentWorker):
     agent_id = AgentId.RESOURCE_OPTIMIZATION
 
-    def __init__(self, bus, context, *, metrics: MetricsSource | None = None, **kwargs) -> None:
+    def __init__(self, bus, context, *, metrics_source: MetricsSource | None = None, **kwargs) -> None:
         super().__init__(bus, context, **kwargs)
-        self._metrics = metrics
+        self._metrics = metrics_source
 
     async def run(self, task: AgentTask, request: EventEnvelope) -> WorkerOutput:
         ctx = task.task_context

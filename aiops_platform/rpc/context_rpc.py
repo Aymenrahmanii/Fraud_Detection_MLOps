@@ -7,6 +7,7 @@ caller's `Principal` from it and `ContextService` enforces the access rules.
 """
 
 import logging
+import time
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -14,6 +15,7 @@ from typing import Any
 import grpc
 from pydantic import ValidationError
 
+from aiops_platform.bus.base import TransientError
 from aiops_platform.context.service import AccessDenied, ContextService, Principal
 from aiops_platform.context.store import IncidentNotFound
 from aiops_platform.contracts.context import CandidateAction, EvidenceReference, IncidentContext
@@ -115,18 +117,36 @@ async def _abort_for(context, exc: BaseException):
     await context.abort(grpc.StatusCode.INTERNAL, type(exc).__name__)
 
 
+def _status_code(exc: BaseException) -> str:
+    if isinstance(exc, Unauthenticated):
+        return "UNAUTHENTICATED"
+    if isinstance(exc, AccessDenied):
+        return "PERMISSION_DENIED"
+    if isinstance(exc, (IncidentNotFound, KeyError)):
+        return "NOT_FOUND"
+    if isinstance(exc, (ValidationError, ValueError, TypeError)):
+        return "INVALID_ARGUMENT"
+    return "INTERNAL"
+
+
 class ContextServicer(rpc.ContextServiceServicer):
-    def __init__(self, service: ContextService, verifier: Verifier) -> None:
+    def __init__(self, service: ContextService, verifier: Verifier, metrics=None) -> None:
         self._service = service
         self._verifier = verifier
+        self._metrics = metrics  # PlatformMetrics: per-method latency and error codes
         # Instance attributes shadow the generated UNIMPLEMENTED base methods.
         for rpc_name in SPECS:
             setattr(self, rpc_name, self._handler(rpc_name))
+
+    def _observe(self, rpc_name: str, code: str, started: float) -> None:
+        if self._metrics is not None:
+            self._metrics.context_rpc.labels(rpc_name, code).observe(time.perf_counter() - started)
 
     def _handler(self, rpc_name: str):
         method_name, decode, encode = SPECS[rpc_name]
 
         async def handle(request, context):
+            started = time.perf_counter()
             try:
                 principal = self._verifier.principal(context.invocation_metadata())
                 args = (
@@ -138,15 +158,18 @@ class ContextServicer(rpc.ContextServiceServicer):
                     args.setdefault("incident_id", request.incident_id)
                 positional, keyword = decode(args)
                 result = await getattr(self._service, method_name)(principal, *positional, **keyword)
-                return pb.Reply(result_json=dumps(encode(result)))
+                reply = pb.Reply(result_json=dumps(encode(result)))
+                self._observe(rpc_name, "OK", started)
+                return reply
             except Exception as exc:  # noqa: BLE001 - mapped to a gRPC status
+                self._observe(rpc_name, _status_code(exc), started)
                 await _abort_for(context, exc)
 
         return handle
 
 
-def add_context_service(server: grpc.aio.Server, service: ContextService, verifier: Verifier) -> None:
-    rpc.add_ContextServiceServicer_to_server(ContextServicer(service, verifier), server)
+def add_context_service(server: grpc.aio.Server, service: ContextService, verifier: Verifier, metrics=None) -> None:
+    rpc.add_ContextServiceServicer_to_server(ContextServicer(service, verifier, metrics), server)
 
 
 class GrpcContextService:
@@ -172,6 +195,13 @@ class GrpcContextService:
                 raise AccessDenied(exc.details()) from exc
             if code is grpc.StatusCode.NOT_FOUND:
                 raise IncidentNotFound(exc.details()) from exc
+            if code in (
+                grpc.StatusCode.UNAVAILABLE,
+                grpc.StatusCode.DEADLINE_EXCEEDED,
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+            ):
+                # The Context Service is down or slow: callers retry with backoff.
+                raise TransientError(f"Context Service {code.name}: {exc.details()}") from exc
             raise
         return loads(reply.result_json)
 

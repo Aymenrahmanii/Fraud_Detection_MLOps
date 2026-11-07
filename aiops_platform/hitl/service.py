@@ -105,6 +105,7 @@ class ApprovalState(BaseModel):
     action_id: str
     action_version: int
     expires_at: datetime
+    created_at: datetime | None = None
     decision: str | None = None
     approver_id: str | None = None
     comment: str | None = None
@@ -361,6 +362,7 @@ class HitlService:
             action_id=row["action_id"],
             action_version=row["action_version"],
             expires_at=row["expires_at"],
+            created_at=row.get("created_at"),
             decision=row.get("decision"),
             approver_id=row.get("approver_id"),
             comment=row.get("reason"),

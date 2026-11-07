@@ -198,6 +198,25 @@ async def test_model_drift_retrain_and_promotion_review(prod):
         assert status["stage"] == "KEEP_CHAMPION"
 
 
+async def test_new_outage_after_agent1_restart_opens_a_new_incident(prod):
+    """Regression: a restarted watcher reused a closed incident's ID and the outage was ignored."""
+    from aiops_platform.workers.agent1 import SimWatcher
+
+    memory_leak_after_deploy(prod.cluster)
+    [first] = await detect(prod)
+    [approval] = await prod.pending_approvals()
+    await prod.orchestrator.resolve_approval(approval["approval_id"], decision="APPROVE", operator=SRE, comment="ok")
+    await prod.bus.drain(timeout=60)
+    assert (await prod.orchestrator.status(first))["stage"] == "RESOLVED"
+
+    restarted = SimWatcher(prod.bus, prod.cluster, prod.watcher._detector, [PAYMENT], Environment.PRODUCTION)
+    memory_leak_after_deploy(prod.cluster)  # v2.7 shipped again
+    [second] = await restarted.tick()
+    await prod.bus.drain(timeout=60)
+    assert second != first
+    assert (await prod.orchestrator.status(second))["stage"] == "WAITING_FOR_APPROVAL"
+
+
 async def test_duplicate_delivery_has_no_second_side_effect(prod):
     memory_leak_after_deploy(prod.cluster)
     await detect(prod)

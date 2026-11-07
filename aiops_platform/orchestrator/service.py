@@ -33,6 +33,8 @@ from aiops_platform.policy import PolicyGate
 
 log = logging.getLogger(__name__)
 
+TASK_TIMEOUT_SECONDS = 600.0
+
 RESULT_TOPICS = [
     "monitoring.anomaly.detected",
     "monitoring.recovery.verified",
@@ -91,11 +93,18 @@ class OrchestratorService:
         self._idempotency = idempotency or InMemoryIdempotencyStore()
         self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._started: dict[str, datetime] = {}
+        # incident -> (pending task ids, when that set started waiting)
+        self._waiting_since: dict[str, tuple[frozenset[str], datetime]] = {}
+        self.task_timeout_seconds = TASK_TIMEOUT_SECONDS
 
     def subscribe(self) -> None:
-        ReliableConsumer(self.bus, "orchestrator", self.on_event, idempotency=self._idempotency).subscribe(
-            RESULT_TOPICS
-        )
+        ReliableConsumer(
+            self.bus,
+            "orchestrator",
+            self.on_event,
+            idempotency=self._idempotency,
+            observer=self.metrics.observer(),
+        ).subscribe(RESULT_TOPICS)
 
     @staticmethod
     def _config(incident_id: str) -> dict[str, Any]:
@@ -203,7 +212,12 @@ class OrchestratorService:
     async def resume(self, incident_id: str, event: dict[str, Any]) -> None:
         async with self._locks[incident_id]:
             if not await self._waiting(incident_id):
-                log.debug("event for %s ignored: workflow not waiting", incident_id)
+                # Late results after a timeout, or redeliveries, are expected; an anomaly
+                # for a closed workflow is not (it means an incident ID was reused).
+                topic = event.get("topic", "?")
+                level = logging.WARNING if topic == "monitoring.anomaly.detected" else logging.DEBUG
+                log.log(level, "%s for %s ignored: workflow is not waiting", topic, incident_id)
+                self.metrics.unrouted.labels(topic).inc()
                 return
             await self.graph.ainvoke(Command(resume=event), self._config(incident_id))
         await self._after_step(incident_id)
@@ -214,7 +228,7 @@ class OrchestratorService:
         self, approval_id: str, *, decision: str, operator: Operator, comment: str
     ) -> dict[str, Any]:
         state = await self.hitl.resolve_approval(approval_id, decision=decision, operator=operator, comment=comment)
-        self.metrics.hitl_resolved(state.state, (datetime.now(UTC) - state.expires_at).total_seconds())
+        self.metrics.hitl_resolved(state.state, _wait(state))
         await self.resume(
             state.incident_id, {"topic": "hitl", "approval_id": approval_id, "approval": state.model_dump(mode="json")}
         )
@@ -225,20 +239,18 @@ class OrchestratorService:
     async def sweep(self) -> None:
         for approval_id in await self.hitl.expire_due():
             state = await self.hitl.get_approval_state(approval_id)
+            self.metrics.hitl_resolved("EXPIRED", _wait(state))
             await self.resume(
                 state.incident_id,
                 {"topic": "hitl", "approval_id": approval_id, "approval": state.model_dump(mode="json")},
             )
         now = datetime.now(UTC)
-        for incident_id in list(self._started):
-            snapshot = await self.graph.aget_state(self._config(incident_id))
-            pending = snapshot.values.get("pending", {}) if snapshot.values else {}
-            if not snapshot.next or not pending:
+        for incident_id, (pending, since) in list(self._waiting_since.items()):
+            # Measured from when these tasks were dispatched, not from workflow start:
+            # a long human approval must not time out the verification that follows it.
+            if (now - since).total_seconds() < self.task_timeout_seconds:
                 continue
-            stage_age = (now - self._started[incident_id]).total_seconds()
-            if stage_age < 600:
-                continue
-            for message_id in list(pending):
+            for message_id in pending:
                 await self.resume(incident_id, {"topic": "timeout", "causation_id": message_id})
 
     # ---- introspection -------------------------------------------------------
@@ -264,9 +276,27 @@ class OrchestratorService:
 
     async def _after_step(self, incident_id: str) -> None:
         snapshot = await self.graph.aget_state(self._config(incident_id))
+        values = snapshot.values or {}
+        pending = frozenset(values.get("pending", {})) if snapshot.next else frozenset()
+        if pending:
+            previous = self._waiting_since.get(incident_id)
+            if previous is None or previous[0] != pending:
+                self._waiting_since[incident_id] = (pending, datetime.now(UTC))
+        else:
+            self._waiting_since.pop(incident_id, None)
         if not snapshot.next and incident_id in self._started:
-            values = snapshot.values or {}
             seconds = (datetime.now(UTC) - self._started.pop(incident_id)).total_seconds()
             self.metrics.workflow_finished(values.get("kind", "?"), values.get("stage", "?"), seconds)
             if values.get("policy"):
                 self.metrics.policy_decision(values["policy"]["decision"])
+            selected = values.get("selected")
+            action = (values.get("results") or {}).get("action")
+            if selected and action:
+                # Executed action: verified (RECOVERED) or a false action (anything else).
+                outcome = values.get("outcome") if action.get("payload", {}).get("status") == "SUCCESS" else "FAILED"
+                self.metrics.action_outcome(selected["type"], outcome or "UNKNOWN")
+
+
+def _wait(state) -> float | None:
+    created = getattr(state, "created_at", None)
+    return (datetime.now(UTC) - created).total_seconds() if created else None

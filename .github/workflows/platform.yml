@@ -35,6 +35,10 @@ jobs:
         run: python -m pytest -q -W ignore aiops_platform/tests
       - name: Offline demo runs every v5 scenario
         run: python -W ignore -m aiops_platform.demo --auto
+      - name: Reliability benchmark under injected faults (fails on any safety violation)
+        run: python -W ignore -m aiops_platform.experiments.benchmark -n 10 --duplicates 0.3 --context-failures 0.05 --json benchmark.json
+      - uses: actions/upload-artifact@v4
+        with: {name: benchmark-report, path: benchmark.json}
       - name: Static checks
         run: ruff check aiops_platform --exclude aiops_platform/rpc/gen
 

@@ -14,10 +14,11 @@ Agent 4's own SQLite journal makes a redelivered execution resume, not repeat.
 import asyncio
 import json
 import logging
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from aiops_platform.bus import InMemoryIdempotencyStore, ReliableConsumer, publish
+from aiops_platform.bus import ReliableConsumer, publish
 from aiops_platform.contracts.actions import ActionRequest
 from aiops_platform.contracts.enums import AgentId, PolicyDecision, ResultStatus
 from aiops_platform.contracts.events import EventEnvelope
@@ -70,7 +71,8 @@ class DeploymentWorker(AgentWorker):
             self.bus,
             "worker.deployment-recovery-agent.actions",
             self._on_action,
-            idempotency=InMemoryIdempotencyStore(),
+            idempotency=self._idempotency,  # Redis in compose: dedup survives restarts
+            observer=self.metrics.observer(),
         )
         consumer.subscribe(["workflow.continuation", "deployment.action.requested"])
 
@@ -146,9 +148,11 @@ class DeploymentWorker(AgentWorker):
             "approver_subject": claims.approval.approver_subject,
             "approved_at": claims.approval.approved_at.isoformat(),
         }
+        started = time.perf_counter()
         outcome = await asyncio.to_thread(
             self._executor.execute, plan, receipt=receipt, approval_token=request.approval_token
         )
+        self.metrics.task_done(self.agent_id.value, "execute_action", outcome.status, time.perf_counter() - started)
         evidence = await self.context.append_evidence(
             incident_id=intent.incident_id,
             evidence_type="k8s_action",

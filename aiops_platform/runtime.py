@@ -8,6 +8,7 @@ Redpanda/PostgreSQL.
 """
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from aiops_platform.contracts.enums import AgentId, Environment
 from aiops_platform.contracts.events import ServiceIdentity
 from aiops_platform.hitl.keys import SigningKey, registry_for
 from aiops_platform.hitl.service import HitlService
+from aiops_platform.observability.metrics import PlatformMetrics
 from aiops_platform.orchestrator.service import HitlClient, OrchestratorService
 from aiops_platform.sim.cluster import SimInspector, SimMutationAdapter, SimulatedCluster
 from aiops_platform.workers.agent1 import Agent1VerdictService, MonitoringWorker, SimWatcher, build_sim_monitoring
@@ -50,17 +52,25 @@ class Platform:
         *,
         watched: list[ServiceIdentity],
         environment: Environment = Environment.PRODUCTION,
+        metrics: PlatformMetrics | None = None,
+        bus: InMemoryBus | None = None,
+        agent_context: Callable[[ContextService, AgentId], object] | None = None,
     ) -> "Platform":
+        """`bus` and `agent_context` let experiments inject faults (duplicates, outages)."""
         workdir.mkdir(parents=True, exist_ok=True)
-        bus = InMemoryBus()
+        bus = bus or InMemoryBus()
+        metrics = metrics or PlatformMetrics()
         store = await ContextStore.connect(
             f"sqlite+aiosqlite:///{workdir / 'context.db'}", LocalObjectStore(workdir / "evidence")
         )
         context = ContextService(store)
+        make_context = agent_context or AgentContext
         hitl_key = SigningKey.load_or_create(workdir / "keys/hitl.pem", "hitl-key-1", "aiops-hitl-service")
         agent1_key = SigningKey.load_or_create(workdir / "keys/agent1.pem", "agent1-key-1", "agent1-monitoring")
         hitl = HitlService(context=context, signer=hitl_key)
-        orchestrator = OrchestratorService(bus=bus, context=OrchestratorContext(context), hitl=HitlClient(hitl))
+        orchestrator = OrchestratorService(
+            bus=bus, context=OrchestratorContext(context), hitl=HitlClient(hitl), metrics=metrics
+        )
 
         agent, publisher, detector, verifier = build_sim_monitoring(cluster)
         loop = asyncio.get_running_loop()
@@ -80,20 +90,22 @@ class Platform:
             approval_lookup=approval_lookup,
             verdicts=Agent1VerdictProvider(Agent1VerdictService(verifier, agent1_key).sync_provider()),
         )
+
+        def ctx(agent_id: AgentId):
+            return make_context(context, agent_id)
+
+        m = {"metrics": metrics}
         workers = [
-            MonitoringWorker(bus, AgentContext(context, AgentId.MONITORING), agent=agent, publisher=publisher),
-            DiagnosisWorker(bus, AgentContext(context, AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster)),
-            SecurityQualityWorker(bus, AgentContext(context, AgentId.SECURITY_QUALITY)),
+            MonitoringWorker(bus, ctx(AgentId.MONITORING), agent=agent, publisher=publisher, **m),
+            DiagnosisWorker(bus, ctx(AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster), **m),
+            SecurityQualityWorker(bus, ctx(AgentId.SECURITY_QUALITY), **m),
             DeploymentWorker(
-                bus,
-                AgentContext(context, AgentId.DEPLOYMENT_RECOVERY),
-                executor=executor,
-                plans=PlanStore(workdir / "plans"),
+                bus, ctx(AgentId.DEPLOYMENT_RECOVERY), executor=executor, plans=PlanStore(workdir / "plans"), **m
             ),
             ResourceOptimizationWorker(
-                bus, AgentContext(context, AgentId.RESOURCE_OPTIMIZATION), metrics=cluster_metrics(cluster)
+                bus, ctx(AgentId.RESOURCE_OPTIMIZATION), metrics_source=cluster_metrics(cluster), **m
             ),
-            MLOpsWorker(bus, AgentContext(context, AgentId.MLOPS_LIFECYCLE), output_dir=workdir / "agent6"),
+            MLOpsWorker(bus, ctx(AgentId.MLOPS_LIFECYCLE), output_dir=workdir / "agent6", **m),
         ]
         orchestrator.subscribe()
         for worker in workers:

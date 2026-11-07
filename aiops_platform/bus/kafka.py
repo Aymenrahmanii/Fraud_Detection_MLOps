@@ -26,7 +26,9 @@ class KafkaBus:
         client_id: str = "aiops-platform",
         partitions: int = 3,
         replication_factor: int = 1,
+        metrics=None,
     ) -> None:
+        self._metrics = metrics  # PlatformMetrics: consumer lag gauge
         self._bootstrap = bootstrap_servers
         self._client_id = client_id
         self._partitions = partitions
@@ -80,7 +82,7 @@ class KafkaBus:
             )
             await consumer.start()
             self._consumers.append(consumer)
-            self._tasks.append(asyncio.create_task(self._consume(consumer, handlers)))
+            self._tasks.append(asyncio.create_task(self._consume(consumer, handlers, group)))
 
     async def stop(self) -> None:
         for task in self._tasks:
@@ -112,8 +114,19 @@ class KafkaBus:
         finally:
             await admin.close()
 
-    async def _consume(self, consumer, handlers: dict[str, RecordHandler]) -> None:
+    def _record_lag(self, consumer, message, group: str) -> None:
+        if self._metrics is None:
+            return
+        from aiokafka import TopicPartition
+
+        highwater = consumer.highwater(TopicPartition(message.topic, message.partition))
+        if highwater is not None:
+            lag = max(0, highwater - message.offset - 1)
+            self._metrics.consumer_lag.labels(group, message.topic, str(message.partition)).set(lag)
+
+    async def _consume(self, consumer, handlers: dict[str, RecordHandler], group: str) -> None:
         async for message in consumer:
+            self._record_lag(consumer, message, group)
             record = Record(
                 topic=message.topic,
                 key=(message.key or b"").decode("utf-8"),

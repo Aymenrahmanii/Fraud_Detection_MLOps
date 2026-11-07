@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from prometheus_client import generate_latest
 from pydantic import BaseModel, Field
 
+from aiops_platform.bus.base import TransientError
 from aiops_platform.context.service import ContextService, Principal
 from aiops_platform.hitl.service import HitlError, Operator
 
@@ -183,6 +184,10 @@ def create_app(
             )
         except HitlError as exc:
             raise HTTPException(409 if exc.code != "APPROVER_NOT_AUTHORIZED" else 403, f"{exc.code}: {exc}") from exc
+        except TransientError as exc:
+            raise HTTPException(
+                503, "The platform is briefly unavailable; nothing was approved or executed. Retry in a few seconds."
+            ) from exc
 
     @app.post("/api/releases")
     async def release(body: ReleaseRequest, op: Operator = Depends(operator)) -> dict[str, Any]:

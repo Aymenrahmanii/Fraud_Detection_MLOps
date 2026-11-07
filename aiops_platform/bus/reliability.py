@@ -13,6 +13,7 @@ For each subscribed topic a consumer group gets:
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 from collections.abc import Awaitable, Callable, Sequence
@@ -42,7 +43,9 @@ H_LAST_ERROR = "x-last-error"
 
 @dataclass(frozen=True)
 class RetryPolicy:
-    max_attempts: int = 3
+    # 5 attempts = 0.5 + 1 + 2 + 4 s of backoff: rides out a short dependency outage
+    # (measured with experiments/benchmark.py --context-failures) before dead-lettering.
+    max_attempts: int = int(os.environ.get("AIOPS_MAX_ATTEMPTS", "5"))
     base_delay_seconds: float = 0.5
     max_delay_seconds: float = 30.0
     jitter_ratio: float = 0.2

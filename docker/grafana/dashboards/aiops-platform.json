@@ -1,0 +1,607 @@
+{
+  "uid": "aiops-platform",
+  "title": "AIOps platform - latency, performance, reliability",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "tags": [
+    "aiops",
+    "v5-section-18"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Workflows finished by outcome",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (kind, stage) (aiops_workflows_finished_total)",
+          "legendFormat": "{{kind}} {{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Policy decisions (autonomy level)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (decision) (aiops_policy_decisions_total)",
+          "legendFormat": "{{decision}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Executed actions by verified outcome (false action rate)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (type, outcome) (aiops_actions_total)",
+          "legendFormat": "{{type}} {{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "MTTR - workflow duration p50 / p95",
+      "description": "p95 needs several events in the window; the 'avg' series is the mean since the process started.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, kind) (rate(aiops_workflow_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{kind}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, kind) (rate(aiops_workflow_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{kind}}"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (kind) (aiops_workflow_duration_seconds_sum) / sum by (kind) (aiops_workflow_duration_seconds_count)",
+          "legendFormat": "avg since start {{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "HITL wait p95 + expiries",
+      "description": "p95 needs several events in the window; the 'avg' series is the mean since the process started.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, state) (rate(aiops_hitl_wait_seconds_bucket[5m])))",
+          "legendFormat": "p95 wait {{state}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum(aiops_hitl_resolutions_total{state=\"EXPIRED\"})",
+          "legendFormat": "expired"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (state) (aiops_hitl_wait_seconds_sum) / sum by (state) (aiops_hitl_wait_seconds_count)",
+          "legendFormat": "avg wait {{state}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Agent task latency p95",
+      "description": "p95 needs several events in the window; the 'avg' series is the mean since the process started.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, agent, objective) (rate(aiops_agent_task_seconds_bucket[5m])))",
+          "legendFormat": "{{agent}} {{objective}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (agent, objective) (aiops_agent_task_seconds_sum) / sum by (agent, objective) (aiops_agent_task_seconds_count)",
+          "legendFormat": "avg {{agent}} {{objective}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Agent task success rate",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (agent) (rate(aiops_agent_task_seconds_count{status=\"SUCCEEDED\"}[5m])) / sum by (agent) (rate(aiops_agent_task_seconds_count[5m]))",
+          "legendFormat": "{{agent}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Context Service latency p95 by call",
+      "description": "p95 needs several events in the window; the 'avg' series is the mean since the process started.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, method) (rate(aiops_context_rpc_seconds_bucket[5m])))",
+          "legendFormat": "{{method}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (method) (aiops_context_rpc_seconds_sum) / sum by (method) (aiops_context_rpc_seconds_count)",
+          "legendFormat": "avg {{method}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Context Service gRPC error rate",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum(rate(aiops_context_rpc_seconds_count{code!=\"OK\"}[5m])) / sum(rate(aiops_context_rpc_seconds_count[5m]))",
+          "legendFormat": "errors / calls"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Kafka consumer lag",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 30,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "max by (group) (aiops_kafka_consumer_lag)",
+          "legendFormat": "{{group}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Retries, dead letters, ignored duplicates, unrouted events (per min)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (group) (rate(aiops_retries_total[5m])) * 60",
+          "legendFormat": "retries {{group}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (group) (rate(aiops_dead_letters_total[5m])) * 60",
+          "legendFormat": "DLQ {{group}}"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (group) (rate(aiops_duplicates_total[5m])) * 60",
+          "legendFormat": "duplicates {{group}}"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "sum by (topic) (rate(aiops_unrouted_events_total[5m])) * 60",
+          "legendFormat": "unrouted {{topic}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Event handling time p95 by consumer",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aiops-prom"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 38,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aiops-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, group) (rate(aiops_message_processing_seconds_bucket[5m])))",
+          "legendFormat": "{{group}}"
+        }
+      ]
+    }
+  ]
+}

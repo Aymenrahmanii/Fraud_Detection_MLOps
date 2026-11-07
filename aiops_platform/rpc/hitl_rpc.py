@@ -17,6 +17,7 @@ from agent4_deployment_recovery.core.integration_models import (
     RecoveryVerificationRequestV1,
     SignedRecoveryVerificationEnvelopeV1,
 )
+from aiops_platform.bus.base import TransientError
 from aiops_platform.context.service import AccessDenied, Principal, Role
 from aiops_platform.contracts.enums import AgentId
 from aiops_platform.hitl.service import ApprovalRequest, ApprovalState, HitlError, HitlService, Operator
@@ -37,6 +38,10 @@ async def _abort(context, exc: BaseException):
         await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
     if isinstance(exc, HitlError):
         await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"{exc.code}: {exc}")
+    if isinstance(exc, TransientError):
+        # A dependency (Context Service) is down: tell the caller to retry, not that we broke.
+        log.warning("rpc unavailable: %s", exc)
+        await context.abort(grpc.StatusCode.UNAVAILABLE, str(exc))
     log.exception("rpc failed")
     await context.abort(grpc.StatusCode.INTERNAL, type(exc).__name__)
 
@@ -118,6 +123,8 @@ class GrpcHitlClient:
                 raise error from exc
             if exc.code() is grpc.StatusCode.PERMISSION_DENIED:
                 raise AccessDenied(exc.details()) from exc
+            if exc.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
+                raise TransientError(f"HITL Service {exc.code().name}: {exc.details()}") from exc
             raise
         return loads(reply.result_json)
 

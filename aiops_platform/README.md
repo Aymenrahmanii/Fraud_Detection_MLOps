@@ -1,22 +1,22 @@
-# Shared platform: Orchestrator, backbone, Context, HITL, Dashboard
+﻿# Shared platform: Orchestrator, backbone, Context, HITL, Dashboard
 
 This package turns the six merged agents into the closed loop described in
 `Six_Agent_DevOps_MLOps_Technical_Architecture_v5.pdf`. It is the shared
-platform (v5 sections 2–9, 17–18), not a seventh agent: it routes work, holds
+platform (v5 sections 2â€“9, 17â€“18), not a seventh agent: it routes work, holds
 state, gates risk and asks humans; the agents do all the specialist work.
 Design notes are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
-Agent 1 ──ANOMALY_DETECTED──▶ Kafka ──▶ Orchestrator (LangGraph, one thread per incident)
-                                          │  task_context            ▲ typed result events
-                                          ├──────────▶ Agent 2 RCA ───┤
-                                          ├──────────▶ Agent 5 alternative
-                                          │  consensus → Policy & Risk Gate (AUTO / APPROVAL / BLOCK)
-                                          ├──────────▶ Agent 4 prepare: exact plan + dry-run (no change)
-                                          │  HITL Service ◀──▶ Dashboard (human sees the exact patch)
-                                          ├──────────▶ Agent 4 execute (signed permit) ──gRPC──▶ Agent 1 signed verdict
-                                          ├──────────▶ Agent 1 verify over the SLO window
-                                          └─▶ close / replan / escalate      every step → Context Service (audit chain)
+Agent 1 â”€â”€ANOMALY_DETECTEDâ”€â”€â–¶ Kafka â”€â”€â–¶ Orchestrator (LangGraph, one thread per incident)
+                                          â”‚  task_context            â–² typed result events
+                                          â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ Agent 2 RCA â”€â”€â”€â”¤
+                                          â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ Agent 5 alternative
+                                          â”‚  consensus â†’ Policy & Risk Gate (AUTO / APPROVAL / BLOCK)
+                                          â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ Agent 4 prepare: exact plan + dry-run (no change)
+                                          â”‚  HITL Service â—€â”€â”€â–¶ Dashboard (human sees the exact patch)
+                                          â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ Agent 4 execute (signed permit) â”€â”€gRPCâ”€â”€â–¶ Agent 1 signed verdict
+                                          â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ Agent 1 verify over the SLO window
+                                          â””â”€â–¶ close / replan / escalate      every step â†’ Context Service (audit chain)
 ```
 
 ## Run it
@@ -25,11 +25,11 @@ All commands from the repository root. The agents' own tests are unchanged.
 
 | What | Command |
 |---|---|
-| Platform tests (42: contracts, bus, Context, policy, HITL, gRPC, Dashboard, end-to-end loop) | `python -m pytest -q -W ignore aiops_platform/tests` |
+| Platform tests (44: contracts, bus, Context, policy, HITL, gRPC, Dashboard, end-to-end loop) | `python -m pytest -q -W ignore aiops_platform/tests` |
 | Scripted demo of every v5 scenario + evaluation metrics (no Docker) | `python -m aiops_platform.demo --auto` |
-| Platform + Dashboard in one process, with fault-injection buttons | `python -m aiops_platform.demo serve` → <http://127.0.0.1:8090> |
-| Distributed stack (Redpanda, Postgres, Redis, gRPC, 13 containers) | `docker compose -f compose.platform.yaml up --build -d` → <http://127.0.0.1:8090> |
-| Distributed smoke test (inject leak → approve → verified recovery) | `python aiops_platform/experiments/compose_smoke.py --start --stop` |
+| Platform + Dashboard in one process, with fault-injection buttons | `python -m aiops_platform.demo serve` â†’ <http://127.0.0.1:8090> |
+| Distributed stack (Redpanda, Postgres, Redis, gRPC, 13 containers) | `docker compose -f compose.platform.yaml up --build -d` â†’ <http://127.0.0.1:8090> |
+| Distributed smoke test (inject leak â†’ approve â†’ verified recovery) | `python aiops_platform/experiments/compose_smoke.py --start --stop` |
 
 Dashboard tokens (development only, `dashboard/operators.example.yaml`):
 `dev-sre-token` (approves rollback/scale), `dev-release-token` (deploys),
@@ -57,7 +57,7 @@ uv pip install -c /tmp/constraints.txt --override docker/overrides.txt \
    verifies recovery; the incident closes with a verified hash-chained audit trail.
 2. **CPU saturation (staging)**: bounded scale-up is AUTO, no human needed.
 3. **Failed test before deployment**: Agent 3's `BLOCK` stops the release.
-4. **Release after the fix**: `ALLOW` → approval → deploy → verification.
+4. **Release after the fix**: `ALLOW` â†’ approval â†’ deploy â†’ verification.
 5. **Data drift**: Agent 6 detects drift and F1 drop, retrains with its sklearn
    pipeline, compares candidate vs champion, registers the candidate in MLflow,
    and the ML lead approves the promotion review.
@@ -84,7 +84,7 @@ uv pip install -c /tmp/constraints.txt --override docker/overrides.txt \
 * An `AUTO` `ActionRequest` may carry the HITL policy permit: Agent 4 mutates
   nothing without a signed permit, and it still refuses `AUTOMATED_POLICY`
   provenance in production.
-* `IncidentContext` gains the v5 §6.3 fields (all optional).
+* `IncidentContext` gains the v5 Â§6.3 fields (all optional).
 
 ## Findings for the agent owners
 

@@ -81,6 +81,28 @@ async def test_access_rules_hold_across_the_wire(stack):
     assert await orch.verify_audit_chain("INC-RPC-1")
 
 
+async def test_context_outage_surfaces_as_transient_through_hitl(context):
+    """Regression: an outage reached the Dashboard as INTERNAL/500 instead of retryable."""
+    from aiops_platform.bus.base import TransientError
+
+    dead_channel = grpc.aio.insecure_channel("127.0.0.1:1")  # nothing listens: UNAVAILABLE
+    hitl = HitlService(
+        context=GrpcContextService(dead_channel, cred(Principal.hitl())),
+        signer=SigningKey.generate("k", "aiops-hitl-service"),
+    )
+    server = grpc.aio.server()
+    add_hitl_service(server, hitl, Verifier(SECRET))
+    port = server.add_insecure_port("127.0.0.1:0")
+    await server.start()
+    try:
+        client = GrpcHitlClient(grpc.aio.insecure_channel(f"127.0.0.1:{port}"), cred(Principal.orchestrator()))
+        with pytest.raises(TransientError):
+            await client.get_approval_state("APR-ANY")
+    finally:
+        await server.stop(0)
+        await dead_channel.close()
+
+
 async def test_forged_identity_is_unauthenticated(stack):
     _, channel = stack
     forged = Credential(Principal.orchestrator(), issue_token("wrong-secret", Principal.orchestrator()))

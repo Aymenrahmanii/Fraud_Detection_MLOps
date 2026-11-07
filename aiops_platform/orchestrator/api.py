@@ -13,6 +13,7 @@ from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest
 from pydantic import BaseModel
 
+from aiops_platform.bus.base import TransientError
 from aiops_platform.context.service import Principal, Role
 from aiops_platform.hitl.service import HitlError, Operator
 from aiops_platform.rpc.identity import H_PRINCIPAL, H_TOKEN, Credential, Unauthenticated, Verifier
@@ -56,6 +57,9 @@ def create_orchestrator_api(orchestrator, verifier: Verifier) -> FastAPI:
             )
         except HitlError as exc:
             raise HTTPException(403 if exc.code == "APPROVER_NOT_AUTHORIZED" else 409, f"{exc.code}: {exc}") from exc
+        except TransientError as exc:
+            # Nothing was recorded or executed; the approval is still pending.
+            raise HTTPException(503, f"TEMPORARILY_UNAVAILABLE: {exc}") from exc
 
     @app.post("/releases")
     async def release(body: dict[str, Any], _: Principal = Depends(dashboard)) -> dict[str, Any]:
@@ -90,6 +94,8 @@ class HttpOrchestrator:
             error = HitlError(message or code)
             error.code = code
             raise error
+        if response.status_code == 503:
+            raise TransientError(response.json().get("detail", "orchestrator dependency unavailable"))
         return response.raise_for_status().json()
 
     async def status(self, incident_id: str) -> dict[str, Any]:
