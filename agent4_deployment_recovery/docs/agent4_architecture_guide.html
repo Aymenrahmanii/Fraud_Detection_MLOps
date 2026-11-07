@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent 4 — Architecture &amp; Operator Guide</title>
+  <style>
+    @page { size: A4; margin: 15mm 14mm 16mm; }
+    * { box-sizing: border-box; }
+    :root {
+      --ink: #10233f;
+      --muted: #52647b;
+      --navy: #0b1f3a;
+      --blue: #2458d6;
+      --cyan: #12a6bd;
+      --green: #14835c;
+      --amber: #bd7010;
+      --red: #bb3241;
+      --paper: #ffffff;
+      --wash: #f2f6fb;
+      --line: #d8e1ec;
+    }
+    html { background: #dfe6ef; }
+    body {
+      margin: 0 auto;
+      max-width: 210mm;
+      color: var(--ink);
+      background: var(--paper);
+      font: 10pt/1.48 "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    h1, h2, h3, h4 { margin: 0; line-height: 1.15; color: var(--navy); }
+    h1 { font-size: 31pt; letter-spacing: -0.7pt; }
+    h2 { margin: 0 0 12px; font-size: 20pt; }
+    h3 { margin: 14px 0 7px; font-size: 13pt; }
+    h4 { margin: 9px 0 4px; font-size: 10.5pt; }
+    p { margin: 6px 0 9px; }
+    ul, ol { margin: 5px 0 10px; padding-left: 21px; }
+    li { margin: 3px 0; }
+    code {
+      color: #173f7a;
+      background: #eaf1fa;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font: 8.8pt Consolas, monospace;
+    }
+    pre {
+      margin: 8px 0 12px;
+      padding: 11px 13px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      color: #e9f2ff;
+      background: var(--navy);
+      border-radius: 8px;
+      font: 8.3pt/1.45 Consolas, monospace;
+    }
+    .page { padding: 0; page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .cover {
+      min-height: 263mm;
+      padding: 25mm 16mm 16mm;
+      color: white;
+      background:
+        radial-gradient(circle at 86% 14%, rgba(18,166,189,.38), transparent 29%),
+        linear-gradient(145deg, #09182e 0%, #12315d 55%, #2458d6 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::after {
+      content: "";
+      position: absolute;
+      width: 145mm; height: 145mm;
+      right: -68mm; bottom: -70mm;
+      border: 18mm solid rgba(255,255,255,.055);
+      border-radius: 50%;
+    }
+    .cover h1 { color: white; max-width: 145mm; margin-top: 32mm; }
+    .cover .kicker { color: #7de0ef; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+    .cover .subtitle { max-width: 142mm; color: #d9e7fa; font-size: 14pt; margin-top: 15px; }
+    .cover .meta { position: absolute; left: 16mm; bottom: 18mm; color: #c4d5ed; }
+    .cover .agent-mark {
+      display: inline-grid; place-items: center;
+      width: 22mm; height: 22mm;
+      border: 2px solid #7de0ef; border-radius: 7mm;
+      color: white; font-size: 23pt; font-weight: 800;
+      box-shadow: 0 0 0 7px rgba(125,224,239,.08);
+    }
+    .content { padding: 2mm 0 0; }
+    .section-label {
+      margin-bottom: 5px;
+      color: var(--blue); font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; font-size: 8pt;
+    }
+    .lead { color: #314963; font-size: 12pt; line-height: 1.52; }
+    .callout {
+      margin: 11px 0;
+      padding: 10px 12px;
+      border-left: 4px solid var(--blue);
+      border-radius: 0 7px 7px 0;
+      background: #edf4ff;
+    }
+    .callout.safe { border-color: var(--green); background: #eaf7f1; }
+    .callout.warn { border-color: var(--amber); background: #fff5e6; }
+    .callout.stop { border-color: var(--red); background: #fff0f2; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .card {
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      break-inside: avoid;
+    }
+    .card h3 { margin-top: 0; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .num {
+      display: inline-grid; place-items: center;
+      width: 21px; height: 21px; margin-right: 6px;
+      color: white; background: var(--blue); border-radius: 50%;
+      font-weight: 700; font-size: 8pt;
+    }
+    .tag {
+      display: inline-block; margin: 2px 3px 2px 0; padding: 2px 6px;
+      color: #25435f; background: #e9f0f8; border-radius: 10px;
+      font-size: 7.6pt; font-weight: 600;
+    }
+    .tag.green { color: #07583a; background: #dff5e9; }
+    .tag.red { color: #84202d; background: #ffe0e5; }
+    .tag.amber { color: #774006; background: #ffedce; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 13px; font-size: 8.6pt; }
+    th { padding: 6px 7px; color: white; background: var(--navy); text-align: left; }
+    td { padding: 6px 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tr:nth-child(even) td { background: #f7f9fc; }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px 8px;
+      margin: 13px 0 16px;
+    }
+    .node {
+      min-height: 45px; padding: 7px 6px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; text-align: center;
+      border: 1px solid #9db2cc; border-radius: 7px;
+      background: #f5f8fc; font-size: 8pt; font-weight: 700;
+    }
+    .node:not(:nth-child(5n))::after {
+      content: "→"; position: absolute; right: -14px; color: var(--blue); font-size: 14pt;
+    }
+    .node.blue { color: white; border-color: var(--blue); background: var(--blue); }
+    .node.green { color: white; border-color: var(--green); background: var(--green); }
+    .node.red { color: white; border-color: var(--red); background: var(--red); }
+    .layer {
+      display: grid; grid-template-columns: 31mm 1fr; margin: 0 0 7px;
+      border: 1px solid var(--line); border-radius: 7px; overflow: hidden;
+      break-inside: avoid;
+    }
+    .layer-name { padding: 9px; color: white; background: var(--navy); font-weight: 700; }
+    .layer-body { padding: 9px 11px; background: #f8fafc; }
+    .file-list { columns: 2; column-gap: 14px; }
+    .file { break-inside: avoid; margin: 0 0 7px; }
+    .file strong { color: #163d75; font-family: Consolas, monospace; font-size: 8.7pt; }
+    .phase-line { display: grid; grid-template-columns: 22mm 1fr; gap: 7px; margin-bottom: 8px; }
+    .phase-id { padding: 6px; color: white; background: var(--blue); border-radius: 6px; text-align: center; font-weight: 700; }
+    .phase-body { padding: 6px 9px; border-left: 2px solid #aac0df; }
+    .small { color: var(--muted); font-size: 8pt; }
+    .footer-note { color: var(--muted); font-size: 7.7pt; }
+    .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 20px; margin-top: 13px; }
+    .toc div { padding: 7px 0; border-bottom: 1px dotted #a8b7c9; }
+    .toc b { display: inline-block; width: 20px; color: var(--blue); }
+    .check { color: var(--green); font-weight: 800; }
+    .cross { color: var(--red); font-weight: 800; }
+    .tree {
+      padding: 12px 14px; color: #e9f2ff; background: var(--navy);
+      border-radius: 8px; font: 8.6pt/1.55 Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="agent-mark">4</div>
+    <div class="kicker">Fraud Detection MLOps</div>
+    <h1>Intelligent Deployment &amp; Recovery</h1>
+    <p class="subtitle">A visual architecture and operator guide to the Agent 4 package, its safety model, execution lifecycle, integrations, and current limitations.</p>
+    <div class="meta">
+      <strong>Repository:</strong> Fraud_Detection_MLOps<br>
+      <strong>Package:</strong> agent4_deployment_recovery<br>
+      <strong>Branch:</strong> Deployment-Agent<br>
+      <strong>Guide date:</strong> 22 October 2026
+    </div>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Orientation</div>
+    <h2>How to think about Agent 4</h2>
+    <p class="lead">Agent 4 is a guarded deployment state machine. It does not decide whether a release is globally acceptable. It executes an already authorized, precisely typed change and refuses to claim success until an independent verifier confirms the result.</p>
+
+    <div class="callout safe"><strong>The simplest mental model:</strong> Agent 4 turns a signed intent into one exact Kubernetes patch, proves that patch is safe enough to attempt, watches the rollout, and prepares an exact inverse if recovery is required.</div>
+
+    <div class="flow">
+      <div class="node">Agent 3<br>release evidence</div>
+      <div class="node">Agent 5<br>resource advice</div>
+      <div class="node">HITL / external<br>authorization</div>
+      <div class="node blue">Authorized<br>operation</div>
+      <div class="node">Deterministic<br>plan</div>
+      <div class="node">Cluster<br>snapshot</div>
+      <div class="node">Pre-flight<br>checks</div>
+      <div class="node">Typed patch +<br>inverse snapshot</div>
+      <div class="node">Server-side<br>dry-run</div>
+      <div class="node blue">Controlled<br>execution</div>
+      <div class="node">Rollout<br>observation</div>
+      <div class="node">Agent 1<br>verification</div>
+      <div class="node green">Success</div>
+      <div class="node red">Exact-state<br>rollback</div>
+      <div class="node">Audit +<br>outbox</div>
+    </div>
+
+    <h3>Responsibility boundaries</h3>
+    <div class="grid-2">
+      <div class="card">
+        <h3><span class="check">✓</span> Agent 4 does</h3>
+        <ul>
+          <li>Validate typed, authorized deployment operations.</li>
+          <li>Inspect one exact namespaced Deployment.</li>
+          <li>Build bounded patches and exact rollback intent.</li>
+          <li>Persist state, idempotency, locks and audit evidence.</li>
+          <li>Observe rollout and coordinate recovery.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="cross">×</span> Agent 4 does not</h3>
+        <ul>
+          <li>Replace Agent 3 security policy.</li>
+          <li>Replace Agent 5 optimization decisions.</li>
+          <li>Invent HITL approval or an authorization issuer.</li>
+          <li>Fabricate Agent 1 success evidence.</li>
+          <li>Expose arbitrary Kubernetes or shell commands.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Contents</h3>
+    <div class="toc">
+      <div><b>1</b> Architecture layers</div><div><b>5</b> External adapters</div>
+      <div><b>2</b> Delivery phases</div><div><b>6</b> Persistence and audit</div>
+      <div><b>3</b> Core contracts</div><div><b>7</b> Interfaces and runtime</div>
+      <div><b>4</b> Safe execution flow</div><div><b>8</b> Running and limitations</div>
+    </div>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Architecture map</div>
+    <h2>The package is separated into layers</h2>
+    <div class="tree">agent4_deployment_recovery/
+├── core/          Rules, contracts, planning and orchestration
+├── adapters/      Kubernetes and cross-agent boundaries
+├── persistence/   SQLite journal, locks, audit and outbox
+├── integration/   Disposable Kubernetes verification harness
+├── tests/         Unit, security, recovery and integration tests
+├── cli.py         Validation, inspection and dry-run interface
+├── mcp_server.py  Read-only machine/agent interface
+├── runtime.py     Operator-controlled dependency assembly
+└── README.md      Operational and architectural reference</div>
+
+    <h3>Layer responsibilities</h3>
+    <div class="layer"><div class="layer-name">Contracts</div><div class="layer-body"><strong>core/schemas.py, kubernetes_models.py, execution_models.py, integration_models.py</strong><br>Define precisely what data may cross a safety boundary. Unknown fields and unsupported versions fail closed.</div></div>
+    <div class="layer"><div class="layer-name">Pure logic</div><div class="layer-body"><strong>planner.py, canonical.py, preflight.py, patch_builder.py, state_machine.py</strong><br>Deterministic calculations with no infrastructure mutation.</div></div>
+    <div class="layer"><div class="layer-name">Orchestration</div><div class="layer-body"><strong>coordinator.py, rollout.py, recovery.py, standalone_rollback.py</strong><br>Orders the steps, handles failures and resumes safely after interruption.</div></div>
+    <div class="layer"><div class="layer-name">External I/O</div><div class="layer-body"><strong>adapters/</strong><br>Explicit ports to Kubernetes, signed issuers, Agent 1, Agent 3, Agent 5 and event transports.</div></div>
+    <div class="layer"><div class="layer-name">Durability</div><div class="layer-body"><strong>persistence/sqlite_journal.py</strong><br>Transactions, workload exclusion, idempotency, immutable artifacts, audit chain and outbox.</div></div>
+    <div class="layer"><div class="layer-name">Exposure</div><div class="layer-body"><strong>cli.py, mcp_server.py, runtime.py</strong><br>Controls what users or other agents can reach. The assembled surface is read-only.</div></div>
+
+    <h3>What was delivered by phase</h3>
+    <div class="phase-line"><div class="phase-id">Phase 0</div><div class="phase-body"><strong>Contracts.</strong> Strict Pydantic models, typed operation variants, immutable target identity, timestamps, hashes and Agent 3/5 compatibility.</div></div>
+    <div class="phase-line"><div class="phase-id">Phase 1</div><div class="phase-body"><strong>Safe core.</strong> Canonical hashing, state machine, deny-by-default authorization, deterministic planning and SQLite journal.</div></div>
+    <div class="phase-line"><div class="phase-id">Phase 2</div><div class="phase-body"><strong>Kubernetes safety.</strong> Inspection, capabilities, pre-flight, minimal JSON Patch and server-side dry-run.</div></div>
+    <div class="phase-line"><div class="phase-id">Phase 3</div><div class="phase-body"><strong>Controlled execution.</strong> Narrow mutation adapter, rollout observation, uncertain-outcome reconciliation and exact-state recovery.</div></div>
+    <div class="phase-line"><div class="phase-id">Phase 4</div><div class="phase-body"><strong>Secure integration.</strong> Ed25519 envelopes, replay protection, approval provenance, signed Agent 1 verdicts and transactional outbox.</div></div>
+    <div class="phase-line"><div class="phase-id">Phase 5</div><div class="phase-body"><strong>Integration readiness.</strong> Read-only runtime/MCP, durable delivery leases, crash consistency, disposable-cluster harness and CI.</div></div>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Core contracts</div>
+    <h2>The vocabulary Agent 4 understands</h2>
+    <table>
+      <thead><tr><th>Concept</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td><code>AuthorizedOperation</code></td><td>An exact requested change plus target, approval, expiry, correlation and idempotency data.</td><td>Prevents free-form deployment requests.</td></tr>
+        <tr><td><code>KubernetesTarget</code></td><td>Cluster, namespace, Deployment, container, UID and expected resourceVersion.</td><td>Prevents changing the wrong object or a replaced object.</td></tr>
+        <tr><td><code>DeploymentPlan</code></td><td>Deterministic ordered steps and a plan hash.</td><td>Binds approval to one reproducible plan.</td></tr>
+        <tr><td><code>DeploymentSnapshot</code></td><td>Observed replicas, containers, probes, resources, strategy and status.</td><td>Safety decisions use real current state.</td></tr>
+        <tr><td><code>TypedPatchPreview</code></td><td>The exact guarded JSON Patch and rollback snapshot.</td><td>No unrestricted paths or last-minute patch substitution.</td></tr>
+        <tr><td><code>ExecutionRecord</code></td><td>The durable state of one execution.</td><td>Supports restart, concurrency control and audit.</td></tr>
+        <tr><td><code>RecoveryVerification</code></td><td>Agent 1's independent verdict about the deployed or restored state.</td><td>Agent 4 cannot mark success from its own observation alone.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Supported operations</h3>
+    <table>
+      <thead><tr><th>Operation</th><th>Behavior</th><th>Special rule</th></tr></thead>
+      <tbody>
+        <tr><td><code>DEPLOY_IMAGE_DIGEST</code></td><td>Changes one container image.</td><td>New image must use an immutable SHA-256 digest; current image and readiness probe must support safe rollback.</td></tr>
+        <tr><td><code>SCALE_REPLICAS</code></td><td>Changes Deployment replica count.</td><td>Observed replicas must equal the stated prior count.</td></tr>
+        <tr><td><code>SET_CONTAINER_RESOURCES</code></td><td>Changes bounded CPU/memory requests or limits.</td><td>Unspecified values are preserved; rollback remembers absent versus present fields.</td></tr>
+        <tr><td><code>ROLLBACK_EXECUTION</code></td><td>Prepares an inverse from a recorded execution.</td><td>Read-only preparation; separate authorization is mandatory and no public execution route exists.</td></tr>
+        <tr><td><code>NO_OP</code></td><td>Records an authorized decision with no infrastructure change.</td><td>Can complete without mutation or Agent 1 rollout verification.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Important hashes</h3>
+    <div class="grid-3">
+      <div class="card"><h4>Approval scope hash</h4><p>Binds approval to operation, target and rollback scope.</p></div>
+      <div class="card"><h4>Plan hash</h4><p>Identifies the complete deterministic deployment plan.</p></div>
+      <div class="card"><h4>Patch hash</h4><p>Identifies the exact canonical RFC 6902 bytes accepted for execution.</p></div>
+      <div class="card"><h4>Artifact hash</h4><p>Protects persisted forward and rollback artifacts.</p></div>
+      <div class="card"><h4>Audit hash</h4><p>Links every audit event to its predecessor.</p></div>
+      <div class="card"><h4>Delivery ID</h4><p>Lets outbox consumers deduplicate at-least-once delivery.</p></div>
+    </div>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Safe execution</div>
+    <h2>From request to verified result</h2>
+    <ol>
+      <li><strong>Validate the request.</strong> Pydantic rejects unknown fields, stale timestamps, mutable deployment tags, ambiguous targets and unsupported operation types.</li>
+      <li><strong>Verify authorization.</strong> The default verifier denies everything. A live path requires a trusted signed permit plus independently authenticated approval provenance.</li>
+      <li><strong>Create the journal record.</strong> Idempotency and the workload lock are acquired transactionally.</li>
+      <li><strong>Inspect the Deployment.</strong> Agent 4 reads the exact name and checks cluster identity, UID and resourceVersion.</li>
+      <li><strong>Run pre-flight.</strong> Allowlist, expected state, probes, resources, strategy, expiry and rollback completeness are evaluated.</li>
+      <li><strong>Build the patch.</strong> Only operation-specific paths are emitted, with server-enforced <code>test</code> operations for prior values.</li>
+      <li><strong>Dry-run the exact patch.</strong> Kubernetes admission sees the same generated patch with <code>dryRun=All</code>.</li>
+      <li><strong>Persist before mutation.</strong> The exact bytes and hash are durable before entering <code>EXECUTING</code>.</li>
+      <li><strong>Re-authorize immediately before mutation.</strong> Expiry, target, plan and patch binding are checked again.</li>
+      <li><strong>Apply once.</strong> The controlled adapter receives only a validated artifact and fresh permit.</li>
+      <li><strong>Observe rollout.</strong> Progress is bounded and distinguishes timeout, stall, failure, cancellation and identity drift.</li>
+      <li><strong>Ask Agent 1.</strong> Only trusted <code>VERIFIED</code> evidence can lead to <code>SUCCEEDED</code>.</li>
+    </ol>
+
+    <h3>State machine</h3>
+    <pre>RECEIVED → AUTHORIZED → PREFLIGHT_PASSED → PLANNED → DRY_RUN_PASSED
+         → EXECUTING → OBSERVING → AWAITING_AGENT1 → SUCCEEDED</pre>
+    <pre>EXECUTING / OBSERVING / AWAITING_AGENT1
+         → ROLLBACK_PENDING → ROLLING_BACK
+         → ROLLBACK_AWAITING_AGENT1 → ROLLED_BACK</pre>
+
+    <div class="grid-2">
+      <div class="callout warn"><strong>Uncertain mutation:</strong> a timeout does not mean “nothing happened.” Agent 4 re-reads the Deployment and reconciles exact fields. It never blindly retries a mutation.</div>
+      <div class="callout stop"><strong>Failed rollback verification:</strong> if the inverse conflicts, rollout fails, scope expires or Agent 1 cannot verify, the result is <code>ROLLBACK_FAILED</code>, not a false success.</div>
+    </div>
+
+    <h3>Why the patch is constrained</h3>
+    <ul>
+      <li>Only image, replica and resource paths are generated.</li>
+      <li>JSON Pointer tokens are escaped correctly.</li>
+      <li>UID, resourceVersion, container name and prior field values are tested.</li>
+      <li>Secrets, cluster-scoped objects and unrelated containers cannot be targeted.</li>
+      <li>Callers cannot submit arbitrary JSON Patch through CLI or MCP.</li>
+    </ul>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Files: core</div>
+    <h2>What each core file represents</h2>
+    <div class="file-list">
+      <div class="file"><strong>schemas.py</strong><br>Primary operations, targets, plans, states, approvals and execution records.</div>
+      <div class="file"><strong>canonical.py</strong><br>Stable JSON normalization and SHA-256 hashing.</div>
+      <div class="file"><strong>authorization.py</strong><br>Authorization protocol, denial model and deny-all default.</div>
+      <div class="file"><strong>planner.py</strong><br>Pure conversion from authorized operation to deterministic plan.</div>
+      <div class="file"><strong>state_machine.py</strong><br>Complete allowlist of legal execution transitions and terminal states.</div>
+      <div class="file"><strong>kubernetes_models.py</strong><br>Cluster connection, Deployment snapshots, capabilities, pre-flight, patches and dry-run results.</div>
+      <div class="file"><strong>preflight.py</strong><br>Structured PASS/BLOCK checks against policy and observed state.</div>
+      <div class="file"><strong>patch_builder.py</strong><br>Minimal guarded JSON Patch plus exact inverse data.</div>
+      <div class="file"><strong>dry_run.py</strong><br>Explicitly opted-in server-side admission validation.</div>
+      <div class="file"><strong>execution_models.py</strong><br>Persisted patch artifacts, permits, mutation, rollout and reconciliation results.</div>
+      <div class="file"><strong>rollout.py</strong><br>Bounded observation of Deployment convergence and failure conditions.</div>
+      <div class="file"><strong>recovery.py</strong><br>Uncertain-outcome reconciliation and exact inverse patch generation.</div>
+      <div class="file"><strong>standalone_rollback.py</strong><br>Read-only rollback preparation from trusted journal evidence.</div>
+      <div class="file"><strong>integration_models.py</strong><br>Signed authorization, approval provenance, Agent 1 and outbox contracts.</div>
+      <div class="file"><strong>coordinator.py</strong><br>The central engine that sequences authorization, safety, mutation, observation and recovery.</div>
+      <div class="file"><strong>errors.py</strong><br>Typed failures for policy, journal, Kubernetes, signatures, replay and integration.</div>
+      <div class="file"><strong>__init__.py</strong><br>Marks the directory as a Python package without activating components.</div>
+    </div>
+
+    <h3>The coordinator is powerful but dependency-controlled</h3>
+    <p>The coordinator cannot contact a cluster on its own. It receives interfaces for authorization, inspection, dry-run, mutation, rollout observation, verification and persistence. Production safety therefore depends on both its logic and which adapters the private runtime chooses to inject.</p>
+
+    <div class="callout safe"><strong>Current assembly:</strong> the public runtime does not inject the live mutation adapter. A production-capable class existing in source code is not the same thing as a reachable production mutation endpoint.</div>
+
+    <h3>Operation-specific pre-flight</h3>
+    <table>
+      <thead><tr><th>Check</th><th>Image</th><th>Scale</th><th>Resources</th></tr></thead>
+      <tbody>
+        <tr><td>Exact UID/resourceVersion</td><td>Required</td><td>Required</td><td>Required</td></tr>
+        <tr><td>New immutable image digest</td><td>Required</td><td>Not relevant</td><td>Not relevant</td></tr>
+        <tr><td>Current immutable image</td><td>Required for safe inverse</td><td>Not required</td><td>Not required</td></tr>
+        <tr><td>Readiness probe</td><td>Required</td><td>Policy/rollout dependent</td><td>Rollout affecting</td></tr>
+        <tr><td>Expected prior replicas</td><td>Not relevant</td><td>Required</td><td>Not relevant</td></tr>
+        <tr><td>Request ≤ limit</td><td>Not relevant</td><td>Not relevant</td><td>Required</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Files: adapters &amp; persistence</div>
+    <h2>How Agent 4 reaches the outside world</h2>
+    <div class="grid-2">
+      <div class="card"><h3>agent1_verification.py</h3><p>Defines the independent verification port. When no trusted implementation exists, it returns <code>UNAVAILABLE</code>.</p></div>
+      <div class="card"><h3>compatibility.py</h3><p>Reads actual Agent 3 and Agent 5 schemas. Their outputs remain evidence/advice and never become authorization.</p></div>
+      <div class="card"><h3>kubernetes.py</h3><p>Uses the official client for exact Deployment inspection and <code>dryRun=All</code>. There is no silent context fallback.</p></div>
+      <div class="card"><h3>kubernetes_mutation.py</h3><p>Contains a disabled default and a tightly allowlisted controlled adapter. It is not wired into public interfaces.</p></div>
+      <div class="card"><h3>signed_contracts.py</h3><p>Checks Ed25519 signatures, issuer, audience, expiry, scope, replay and approval provenance.</p></div>
+      <div class="card"><h3>outbox.py</h3><p>Provides transport-neutral at-least-once dispatch with leases, bounded retries and acknowledgements.</p></div>
+    </div>
+
+    <h3>SQLite execution journal</h3>
+    <p><code>persistence/sqlite_journal.py</code> is the durable safety backbone:</p>
+    <div class="grid-3">
+      <div class="card"><h4>Idempotency</h4><p>A key cannot be reused for a different plan.</p></div>
+      <div class="card"><h4>Workload lock</h4><p>Only one active execution may own a workload.</p></div>
+      <div class="card"><h4>Optimistic state</h4><p>Transitions reject stale record versions.</p></div>
+      <div class="card"><h4>Artifacts</h4><p>Patch content is immutable and hash checked.</p></div>
+      <div class="card"><h4>Audit chain</h4><p>Every event hashes the previous event.</p></div>
+      <div class="card"><h4>Outbox</h4><p>Events and state commit in one transaction.</p></div>
+    </div>
+
+    <div class="callout warn"><strong>Audit limitation:</strong> hash linking makes tampering detectable, but SQLite is not an independently administered audit service. Production needs protected storage, backups, access controls and external retention.</div>
+
+    <h3>External contracts still needed</h3>
+    <table>
+      <thead><tr><th>Provider</th><th>What Agent 4 expects</th><th>Current status</th></tr></thead>
+      <tbody>
+        <tr><td>Orchestrator</td><td>Typed operation plus signed, hash-bound authorization permit.</td><td>Contract exists; provider not implemented here.</td></tr>
+        <tr><td>HITL service</td><td>Authenticated provenance for the approval reference.</td><td>Deny-all default; no fabricated approval.</td></tr>
+        <tr><td>Agent 1</td><td>Signed, one-time verdict bound to execution and expected state.</td><td>Interface exists; default is unavailable.</td></tr>
+        <tr><td>Agent 3 CI</td><td>Assessment plus trusted provenance binding digest to build.</td><td>Schema adapter exists; assessment alone is insufficient.</td></tr>
+        <tr><td>Agent 5</td><td>Recommendation plus exact workload resolution.</td><td>Translator produces only a proposal.</td></tr>
+        <tr><td>Event transport</td><td>Delivery of outbox events with consumer deduplication.</td><td>Dispatcher exists; no Kafka/gRPC transport.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Interfaces</div>
+    <h2>What can be run today</h2>
+    <h3>CLI surface</h3>
+    <table>
+      <thead><tr><th>Command</th><th>Purpose</th><th>Cluster contact</th></tr></thead>
+      <tbody>
+        <tr><td><code>validate-operation</code></td><td>Validate and summarize an operation.</td><td>No</td></tr>
+        <tr><td><code>plan</code></td><td>Create a deterministic deployment plan.</td><td>No</td></tr>
+        <tr><td><code>validate-plan</code></td><td>Validate an existing plan and hash.</td><td>No</td></tr>
+        <tr><td><code>validate-agent3</code></td><td>Read Agent 3 evidence without authorizing it.</td><td>No</td></tr>
+        <tr><td><code>validate-agent5</code></td><td>Read Agent 5 advice without authorizing it.</td><td>No</td></tr>
+        <tr><td><code>inspect --snapshot</code></td><td>Display a stored Deployment snapshot.</td><td>No</td></tr>
+        <tr><td><code>inspect --contact-cluster</code></td><td>Read one explicitly configured Deployment.</td><td>Explicit opt-in</td></tr>
+        <tr><td><code>preflight</code></td><td>Produce machine-readable PASS/BLOCK reasons.</td><td>No</td></tr>
+        <tr><td><code>patch-preview</code></td><td>Display the exact guarded patch and rollback snapshot.</td><td>No</td></tr>
+        <tr><td><code>server-dry-run</code></td><td>Ask Kubernetes admission to validate the patch without persistence.</td><td>Explicit opt-in</td></tr>
+      </tbody>
+    </table>
+
+    <h3>MCP surface</h3>
+    <p>The default MCP server exposes only capability discovery, operation validation, plan preview and Agent 3/5 evidence checks. Operator assembly may add constrained inspection and authenticated, redacted journal reads.</p>
+    <div class="callout stop"><strong>Never exposed through MCP:</strong> deploy, execute, live apply, rollback execution, shell, kubectl, caller-provided trust keys, caller-provided kubeconfig or arbitrary patch input.</div>
+
+    <h3>Runtime assembly</h3>
+    <p><code>runtime.py</code> reads one operator-owned absolute configuration path. External callers cannot inject keys, clients, allowlists or permits. It validates <code>READ_ONLY</code> and future configuration shapes but always reports live execution unavailable.</p>
+
+    <h3>Disposable Kubernetes integration harness</h3>
+    <p>The <code>integration/kubernetes/</code> folder contains:</p>
+    <ul>
+      <li><code>harness.py</code> — strict opt-in and exact test-target configuration.</li>
+      <li><code>rbac.yaml</code> — a namespaced test ServiceAccount/Role/RoleBinding limited to named Deployment get/patch.</li>
+      <li><code>README.md</code> — prerequisites and cleanup responsibility.</li>
+    </ul>
+    <p>The optional tests verify exact reads, dry-run non-persistence, stale version rejection, RBAC denial and bounded rollout observation. They must target a disposable cluster.</p>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Runbook</div>
+    <h2>How to explore Agent 4 locally</h2>
+    <h3>1. Activate the isolated environment</h3>
+    <pre>.\.venv-agent4\Scripts\Activate.ps1
+python --version</pre>
+
+    <h3>2. Run all tests</h3>
+    <pre>python -m pytest agent4_deployment_recovery\tests -v</pre>
+
+    <h3>3. Watch specific behavior</h3>
+    <pre># Execution, Agent 1 verification and rollback
+python -m pytest agent4_deployment_recovery\tests\test_phase3_coordinator.py -v
+
+# Kubernetes safety checks and typed patches
+python -m pytest agent4_deployment_recovery\tests\test_preflight.py -v
+python -m pytest agent4_deployment_recovery\tests\test_patch_builder.py -v
+
+# Signatures, expiry, forgery and replay protection
+python -m pytest agent4_deployment_recovery\tests\test_phase4_signed_contracts.py -v
+
+# Process crash and restart consistency
+python -m pytest agent4_deployment_recovery\tests\test_phase5_crash_consistency.py -v</pre>
+
+    <h3>4. Validate other-agent fixtures</h3>
+    <pre>python -m agent4_deployment_recovery.cli validate-agent3 `
+  agent4_deployment_recovery\tests\fixtures\agent3_release_assessment.json
+
+python -m agent4_deployment_recovery.cli validate-agent5 `
+  agent4_deployment_recovery\tests\fixtures\agent5_resource_recommendation.json</pre>
+
+    <h3>5. Discover the CLI and MCP server</h3>
+    <pre>python -m agent4_deployment_recovery.cli --help
+python -m agent4_deployment_recovery.cli preflight --help
+python -m agent4_deployment_recovery.mcp_server</pre>
+
+    <div class="callout safe"><strong>Best current visualization:</strong> the verbose tests show success, denial, timeout, uncertain apply, restart, verification failure and rollback paths. CLI commands render contracts, plans, reasons and patches as formatted JSON.</div>
+
+    <h3>Continuous integration</h3>
+    <p><code>.github/workflows/agent4-quality.yml</code> installs Python 3.12 dependencies, runs pytest, Ruff and <code>pip check</code>, with read-only repository permission and no deployment permission.</p>
+    <div class="callout warn"><strong>Current trigger detail:</strong> the pull-request trigger targets the <code>Deployment-Agent</code> branch. A PR from <code>Deployment-Agent</code> into <code>main</code> does not match that Agent 4 workflow trigger; Agent 3's release gate is the gate evaluating PR #3.</div>
+  </section>
+
+  <section class="page content">
+    <div class="section-label">Reality check</div>
+    <h2>Executable, but not yet a deployment product</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Implemented and runnable</h3>
+        <ul>
+          <li>Strict operation and integration contracts.</li>
+          <li>Planning, hashing and state transitions.</li>
+          <li>SQLite journal, locks, audit and outbox.</li>
+          <li>Kubernetes inspection and server dry-run.</li>
+          <li>Constrained controlled-mutation component.</li>
+          <li>Rollout observation and exact recovery logic.</li>
+          <li>Signed-contract validation and replay defense.</li>
+          <li>Read-only CLI/MCP and extensive tests.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Not yet integrated</h3>
+        <ul>
+          <li>No production Orchestrator authorization issuer.</li>
+          <li>No trusted external HITL provenance service.</li>
+          <li>No production Agent 1 verifier transport.</li>
+          <li>No Kafka or gRPC outbox transport.</li>
+          <li>No operator-reviewed live composition root.</li>
+          <li>No production cluster/RBAC/network validation.</li>
+          <li>No web dashboard or deployment timeline UI.</li>
+          <li>No canary, blue/green or weighted routing.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Safety invariants to remember</h3>
+    <ol>
+      <li>Agent 3 evidence and Agent 5 recommendations never authorize mutation.</li>
+      <li>The default authorization and mutation implementations deny live actions.</li>
+      <li>The exact dry-run patch bytes must be the exact persisted execution bytes.</li>
+      <li>UID, resourceVersion and prior field values protect against race conditions.</li>
+      <li>SQLite constraints—not only process locks—enforce idempotency and workload exclusion.</li>
+      <li>Rollout convergence never substitutes for independent Agent 1 verification.</li>
+      <li>Unknown schemas, strategies, states or ambiguous responses fail closed.</li>
+      <li>A timeout causes reconciliation, not a blind retry.</li>
+    </ol>
+
+    <div class="callout"><strong>Bottom line:</strong> Agent 4 is not static documentation. It is an executable, heavily tested backend control plane with read-only operational interfaces. It is intentionally not yet exposed as a live deployment service or visual dashboard.</div>
+
+    <h3>Short glossary</h3>
+    <table>
+      <thead><tr><th>Term</th><th>Plain meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Fail closed</td><td>If required evidence is missing or ambiguous, block instead of assuming success.</td></tr>
+        <tr><td>Idempotency</td><td>Repeating the same request does not create a second, different execution.</td></tr>
+        <tr><td>resourceVersion</td><td>Kubernetes concurrency token proving the object has not changed since inspection.</td></tr>
+        <tr><td>Server dry-run</td><td>Kubernetes validates admission without persisting the request.</td></tr>
+        <tr><td>Exact-state rollback</td><td>Restore only the exact prior value that Agent 4 changed.</td></tr>
+        <tr><td>Transactional outbox</td><td>State and an event are stored atomically, then the event is delivered later.</td></tr>
+        <tr><td>HITL</td><td>Human in the loop; approval provenance must come from an external trusted source.</td></tr>
+      </tbody>
+    </table>
+    <p class="footer-note">Generated from the implementation on the Deployment-Agent branch. This guide explains the repository state; it does not activate live mutation or contact Kubernetes.</p>
+  </section>
+</body>
+</html>

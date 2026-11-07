@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent4-it-disposable
+  labels:
+    agent4.openai.dev/disposable: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent4-integration-reader
+  namespace: agent4-it-disposable
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent4-integration-deployment-dry-run
+  namespace: agent4-it-disposable
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["agent4-integration-target"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent4-integration-deployment-dry-run
+  namespace: agent4-it-disposable
+subjects:
+  - kind: ServiceAccount
+    name: agent4-integration-reader
+    namespace: agent4-it-disposable
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: agent4-integration-deployment-dry-run

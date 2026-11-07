@@ -1,0 +1,7 @@
+pydantic==2.14.1
+pytest==8.4.2
+kubernetes==35.0.0
+cryptography==46.0.7
+mcp==2.3.0
+ruff==0.17.1
+pywin32==312; sys_platform == "win32"

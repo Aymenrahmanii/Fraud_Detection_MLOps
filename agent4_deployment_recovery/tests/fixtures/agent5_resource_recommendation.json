@@ -1,0 +1,71 @@
+{
+  "message_id": "MSG-9C5C4FEA5843",
+  "schema_version": "1.0",
+  "correlation_id": "INC-351DEE35057B",
+  "causation_id": null,
+  "trace_id": "TRACE-FDB7962139D9",
+  "source": "resource-optimization-agent",
+  "target": "orchestrator",
+  "topic": "resource.recommendation.created",
+  "message_type": "RESOURCE_RECOMMENDATION",
+  "priority": "P3",
+  "severity": "LOW",
+  "timestamp": "2026-10-08T09:02:52.111479Z",
+  "environment": "development",
+  "service": {
+    "service_id": "fraud-api",
+    "namespace": "default",
+    "version": "unknown"
+  },
+  "evidence_refs": ["agent5_resource_optimization/examples/high_load.json"],
+  "confidence": 0.99,
+  "requires_ack": true,
+  "idempotency_key": "INC-351DEE35057B:RESOURCE_RECOMMENDATION:v1",
+  "payload": {
+    "recommendation_id": "RES-043BF15A8809",
+    "window": "15m",
+    "current": {
+      "replicas": 2,
+      "ready_replicas": 2,
+      "cpu_avg_pct": 61.2,
+      "memory_avg_pct": 68.0,
+      "latency_p95_ms": 490.0,
+      "rps": 640.0,
+      "error_rate_pct": 0.5,
+      "queue_depth": 20,
+      "cpu_usage_millicores": null,
+      "cpu_request_millicores": null,
+      "cpu_limit_millicores": null,
+      "memory_usage_mib": 174.0,
+      "memory_request_mib": null,
+      "memory_limit_mib": 256.0
+    },
+    "forecast": {
+      "horizon": "10m",
+      "rps_expected": 640.0,
+      "confidence_interval": []
+    },
+    "recommendation": {
+      "action": "NO_CHANGE",
+      "from": 2,
+      "to": 2,
+      "min": 1,
+      "max_policy": 8,
+      "memory_limit_from_mib": null,
+      "memory_limit_to_mib": null
+    },
+    "expected_effect": {
+      "latency_reduction_pct": 0.0,
+      "cpu_target_pct": 61.2,
+      "memory_target_pct": 68.0
+    },
+    "reasons": ["No policy threshold justifies a safe resource change"],
+    "constraints": [
+      "replicas>=1",
+      "replicas<=8",
+      "reliability_before_efficiency",
+      "orchestrator_approval_required"
+    ],
+    "rollback_condition": "No change was proposed; continue monitoring the next observation window"
+  }
+}
