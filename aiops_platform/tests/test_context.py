@@ -98,6 +98,25 @@ async def test_tampering_with_audit_is_detected(context, orchestrator, store):
     assert not await context.verify_audit_chain(orchestrator, "INC-TEST-0001")
 
 
+async def test_concurrent_writers_keep_one_unbroken_audit_chain(context, orchestrator):
+    """Agents and the Orchestrator write the same incident at the same time."""
+    import asyncio
+
+    await open_incident(context)
+    now = datetime.now(UTC)
+    writes = [
+        context.append_evidence(DIAG, incident_id="INC-TEST-0001", evidence_type="metric", summary=f"m{i}", content={"i": i}, observed_at=now)
+        for i in range(15)
+    ] + [
+        context.record_decision(orchestrator, "INC-TEST-0001", stage="TEST", decision_type=f"D{i}", payload={"i": i})
+        for i in range(15)
+    ]
+    await asyncio.gather(*writes)
+    trail = await context.audit_trail(orchestrator, "INC-TEST-0001")
+    assert len(trail) == 31
+    assert await context.verify_audit_chain(orchestrator, "INC-TEST-0001")
+
+
 async def test_only_hitl_writes_approvals(context):
     await open_incident(context)
     with pytest.raises(AccessDenied):

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIOps Control Room</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <span class="dot" aria-hidden="true"></span>
+      <strong>AIOps Control Room</strong>
+      <span class="muted">six agents · one orchestrator · human in the loop</span>
+    </div>
+    <form id="login" class="login" autocomplete="off">
+      <label for="token" class="sr-only">Operator token</label>
+      <input id="token" type="password" placeholder="operator token (e.g. dev-sre-token)">
+      <button type="submit">Sign in</button>
+      <span id="who" class="who"></span>
+    </form>
+  </header>
+
+  <main>
+    <section class="column">
+      <div class="panel" id="approvals-panel">
+        <div class="panel-head">
+          <h2>Waiting for a human</h2>
+          <span id="approval-count" class="badge">0</span>
+        </div>
+        <div id="approvals" class="stack"><p class="empty">No pending approvals.</p></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Workflows</h2>
+          <div class="actions" id="scenario-buttons"></div>
+        </div>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Kind</th><th>Service</th><th>Priority</th><th>Status</th><th>Opened</th></tr></thead>
+          <tbody id="incidents"><tr><td colspan="6" class="empty">Sign in to load workflows.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="column detail">
+      <div class="panel" id="detail">
+        <p class="empty">Select a workflow to see its decisions and audit trail.</p>
+      </div>
+    </section>
+  </main>
+
+  <template id="approval-tpl">
+    <article class="approval">
+      <header>
+        <span class="pill action"></span>
+        <span class="target"></span>
+        <span class="expires muted"></span>
+      </header>
+      <p class="reason"></p>
+      <dl class="facts"></dl>
+      <details class="patch"><summary>Exact change Agent 4 will apply</summary><pre></pre></details>
+      <div class="decide">
+        <input class="comment" placeholder="Comment for the audit trail (required)" maxlength="2000">
+        <button class="approve">Approve</button>
+        <button class="reject ghost">Reject</button>
+      </div>
+      <p class="error" role="alert"></p>
+    </article>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

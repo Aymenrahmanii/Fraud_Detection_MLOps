@@ -1,0 +1,15 @@
+# Local/demo operator accounts. Tokens here are development placeholders:
+# a real deployment mounts its own file (or replaces this with SSO/OIDC).
+operators:
+  - subject: alice@sre
+    roles: [sre]
+    token: dev-sre-token
+  - subject: rita@release
+    roles: [release-manager]
+    token: dev-release-token
+  - subject: max@ml
+    roles: [ml-lead]
+    token: dev-ml-token
+  - subject: viewer@team
+    roles: []
+    token: dev-viewer-token

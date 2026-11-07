@@ -9,9 +9,12 @@ record and bumps the incident `version`, so the audit trail and the
 version an action was decided on are always consistent with the data.
 """
 
+import asyncio
 import hashlib
 import json
-from collections.abc import Sequence
+from collections import defaultdict
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -61,6 +64,26 @@ class ContextStore:
     def __init__(self, engine: AsyncEngine, objects: ObjectStore) -> None:
         self._engine = engine
         self.objects = objects
+        self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+    @asynccontextmanager
+    async def _tx(self, incident_id: str) -> AsyncIterator[AsyncConnection]:
+        """One write transaction, serialized per incident.
+
+        The audit chain links each record to the previous one, so two concurrent
+        writers on the same incident must not both read the same "last hash".
+        The in-process lock covers one Context Service process (and SQLite);
+        `SELECT ... FOR UPDATE` on the incident row covers several replicas on
+        PostgreSQL.
+        """
+        async with self._locks[incident_id]:
+            async with self._engine.begin() as conn:
+                await conn.execute(
+                    select(t.incidents.c.incident_id)
+                    .where(t.incidents.c.incident_id == incident_id)
+                    .with_for_update()
+                )
+                yield conn
 
     @classmethod
     async def connect(cls, url: str, objects: ObjectStore) -> "ContextStore":
@@ -90,7 +113,7 @@ class ContextStore:
     ) -> tuple[IncidentContext, bool]:
         """Open an incident, or return the existing one (idempotent). Second item: created."""
         now = _now()
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             existing = await self._incident_row(conn, incident_id)
             if existing is not None:
                 return await self._context(conn, incident_id), False
@@ -136,7 +159,7 @@ class ContextStore:
             values["latest_signals"] = signals
         if closed:
             values["closed_at"] = _now()
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             if values:
                 await conn.execute(
@@ -166,7 +189,7 @@ class ContextStore:
 
     async def append_agent_result(self, result: AgentResult, result_type: str, *, actor: str) -> bool:
         """Store one immutable result; False when this task's result already exists."""
-        async with self._engine.begin() as conn:
+        async with self._tx(result.incident_id) as conn:
             await self._require(conn, result.incident_id)
             try:
                 async with conn.begin_nested():
@@ -207,7 +230,7 @@ class ContextStore:
     ) -> EvidenceReference:
         data = canonical_bytes(content)
         object_uri, digest = self.objects.put(incident_id, data)
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             existing = (
                 await conn.execute(
@@ -271,7 +294,7 @@ class ContextStore:
 
     async def record_action(self, incident_id: str, action: CandidateAction, *, actor: str) -> None:
         now = _now()
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             key = (t.actions.c.action_id == action.action_id) & (
                 t.actions.c.action_version == action.action_version
@@ -319,7 +342,7 @@ class ContextStore:
             values["risk_json"] = risk
         if execution_status is not None:
             values["execution_status"] = execution_status
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             await conn.execute(
                 update(t.actions)
@@ -342,7 +365,7 @@ class ContextStore:
         actor: str,
     ) -> str:
         decision_id = f"DEC-{uuid4().hex[:12]}"
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             await conn.execute(
                 t.decisions.insert().values(
@@ -375,7 +398,7 @@ class ContextStore:
         actor: str,
     ) -> str:
         event_id = f"MEV-{uuid4().hex[:12]}"
-        async with self._engine.begin() as conn:
+        async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             await conn.execute(
                 t.model_events.insert().values(
@@ -401,7 +424,7 @@ class ContextStore:
     # ---- approvals (written by the HITL Service) -------------------------
 
     async def upsert_approval(self, row: dict[str, Any], *, actor: str) -> None:
-        async with self._engine.begin() as conn:
+        async with self._tx(row["incident_id"]) as conn:
             await self._require(conn, row["incident_id"])
             key = t.approvals.c.approval_id == row["approval_id"]
             exists = (await conn.execute(select(t.approvals.c.approval_id).where(key))).first()
