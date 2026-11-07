@@ -18,7 +18,9 @@ Flows (v5 section 18):
 * MLOPS:    Agent 6 health -> retrain/evaluate -> human promotion review -> record
 """
 
+import json
 import logging
+import os
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, TypedDict
@@ -41,6 +43,21 @@ from aiops_platform.orchestrator.consensus import build_consensus
 from aiops_platform.policy import PolicyGate, PolicyInput
 
 log = logging.getLogger(__name__)
+
+
+def approval_ttl_seconds() -> int:
+    """How long a human has to decide: AIOPS_APPROVAL_TTL_SECONDS, default 600 s, at least 30 s.
+
+    An expired approval is re-requested once, then the workflow escalates.
+    """
+    return max(30, int(os.environ.get("AIOPS_APPROVAL_TTL_SECONDS", "600")))
+
+
+def action_fingerprint(candidate: dict[str, Any]) -> str:
+    """The change itself, independent of which re-plan or agent produced it."""
+    return f"{candidate['type']}:{json.dumps(candidate.get('parameters') or {}, sort_keys=True)}"
+
+
 SOURCE = "orchestrator"
 MAX_REPLANS = 1
 MAX_APPROVAL_ROUNDS = 2
@@ -65,6 +82,8 @@ class WorkflowState(TypedDict, total=False):
     results: dict[str, Any]
     candidates: list[dict[str, Any]]
     tried: list[str]
+    # what a human rejected (action type + parameters), so a re-plan never asks again
+    rejected: list[str]
     consensus: dict[str, Any]
     selected: dict[str, Any] | None
     policy: dict[str, Any] | None
@@ -301,9 +320,16 @@ class WorkflowNodes:
 
     async def policy_gate(self, state: WorkflowState) -> WorkflowState:
         tried = set(state.get("tried", []))
-        candidates = [c for c in state.get("candidates", []) if c["action_id"] not in tried]
+        rejected = set(state.get("rejected", []))
+        fresh = [c for c in state.get("candidates", []) if c["action_id"] not in tried]
+        # A re-plan gets new action IDs; a change a human already rejected is never proposed again.
+        candidates = [c for c in fresh if action_fingerprint(c) not in rejected]
         if not candidates:
-            return {"selected": None, "policy": None, "outcome": "NO_SAFE_ACTION"}
+            outcome = "REJECTED_BY_HUMAN" if fresh else "NO_SAFE_ACTION"
+            notes = list(state.get("notes", []))
+            if fresh:
+                notes.append(f"no new option: a human already rejected {', '.join(sorted({c['type'] for c in fresh}))}")
+            return {"selected": None, "policy": None, "outcome": outcome, "notes": notes}
         cand = candidates[0]
         c = state.get("consensus", {})
         release = state.get("results", {}).get("release", {}).get("payload", {})
@@ -417,6 +443,7 @@ class WorkflowNodes:
             evidence_summary=tuple(evidence),
             hitl_triggers=tuple(policy.get("reasons", [])),
             plan=PlanPrepared.model_validate(plan) if plan else None,
+            ttl_seconds=approval_ttl_seconds(),
         )
 
     async def authorize(self, state: WorkflowState) -> WorkflowState:
@@ -492,6 +519,10 @@ class WorkflowNodes:
             await self.d.context.update_action(
                 state["incident_id"], cand["action_id"], cand["action_version"], execution_status="REJECTED_BY_HUMAN"
             )
+            return {
+                "stage": f"HITL_{approval['state']}",
+                "rejected": [*state.get("rejected", []), action_fingerprint(cand)],
+            }
         return {"stage": f"HITL_{approval['state']}"}
 
     def route_human(self, state: WorkflowState) -> str:

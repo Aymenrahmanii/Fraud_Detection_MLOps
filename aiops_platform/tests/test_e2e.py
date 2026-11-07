@@ -79,9 +79,15 @@ async def test_rejection_replans_and_never_executes(prod):
     assert prod.cluster.deployment("payment-service", "prod").version == "v2.7"
     status = await prod.orchestrator.status(incident)
     assert status["replans"] == 1
-    # The replanned workflow asks for approval again (new round, never auto-executed).
-    assert status["stage"] == "WAITING_FOR_APPROVAL"
+    # The re-plan proposes the same rollback under a new action ID: it is not asked again.
+    # The only other option (a scale-up without a replica count) is refused by Agent 4,
+    # so the workflow goes to a human with nothing executed.
+    assert await prod.pending_approvals() == []
+    assert status["stage"] == "ESCALATED"
+    assert status["outcome"] == "REJECTED_BY_HUMAN"
     assert prod.cluster.mutations == []
+    trail = await prod.context.audit_trail(ORCH, incident)
+    assert sum(r["action"] == "APPROVAL_WAITING_FOR_HUMAN" for r in trail) == 1
 
 
 async def test_unauthorized_operator_cannot_approve(prod):
