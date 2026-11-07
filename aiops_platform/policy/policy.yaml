@@ -1,0 +1,55 @@
+# Policy & Risk Gate configuration (v5 section 17). Weights and thresholds are
+# experimental starting points ("calibrated experimentally, not fixed by design").
+version: platform-policy-1.0
+
+decision_weights:
+  rca_confidence: 0.40
+  evidence_strength: 0.25
+  historical_success: 0.20
+  agent_agreement: 0.15
+
+risk_weights:
+  environment_criticality: 0.30
+  blast_radius: 0.20
+  irreversibility: 0.20
+  data_impact: 0.15
+  uncertainty: 0.15
+
+thresholds:
+  auto_decision_score: 0.85   # LOW risk + score >= this -> AUTO
+  min_confidence: 0.60        # below -> HITL (v5 7.1)
+  max_disagreement: 0.50      # agreement below 1 - this -> HITL
+  risk_levels: {LOW: 0.35, MEDIUM: 0.60, HIGH: 0.80}   # upper bounds; above HIGH -> CRITICAL
+  default_historical_success: 0.50
+
+environment_criticality: {local: 0.0, test: 0.1, staging: 0.4, production: 1.0}
+
+# Per action type: blast radius 0..1, reversible, data impact 0..1.
+actions:
+  SCALE_REPLICAS:    {blast_radius: 0.2, reversible: true,  data_impact: 0.0}
+  ROLLING_RESTART:   {blast_radius: 0.3, reversible: true,  data_impact: 0.0}
+  ROLLBACK:          {blast_radius: 0.5, reversible: true,  data_impact: 0.0}
+  DEPLOY:            {blast_radius: 0.6, reversible: true,  data_impact: 0.0}
+  CANARY:            {blast_radius: 0.3, reversible: true,  data_impact: 0.0}
+  TRAFFIC_SHIFT:     {blast_radius: 0.5, reversible: true,  data_impact: 0.0}
+  BLUE_GREEN_SWITCH: {blast_radius: 0.7, reversible: true,  data_impact: 0.0}
+  PROMOTE_MODEL:     {blast_radius: 0.6, reversible: true,  data_impact: 0.2}
+  INCREASE_MEMORY:   {blast_radius: 0.3, reversible: true,  data_impact: 0.0}
+
+# Bounded autonomous ranges (v5 7.1 "action outside a bounded autonomous range").
+bounds:
+  max_replicas: 8
+  min_replicas: 2
+  max_scale_step: 4
+
+# Actions Agent 4 cannot execute are blocked here instead of failing later.
+executable_actions: [DEPLOY, ROLLBACK, SCALE_REPLICAS, INCREASE_MEMORY]
+
+# A production side effect needs a human unless explicitly pre-authorized here.
+pre_authorized:
+  - {environment: staging, action: SCALE_REPLICAS}
+  - {environment: test, action: SCALE_REPLICAS}
+  - {environment: local, action: SCALE_REPLICAS}
+
+forbidden:
+  - {environment: production, action: BLUE_GREEN_SWITCH}
