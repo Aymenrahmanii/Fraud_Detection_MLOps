@@ -14,7 +14,7 @@ repository root, with the environment from [README.md](README.md#run-it).
 ## 1. Test suites
 
 ```bash
-python -m pytest -q -W ignore aiops_platform/tests        # platform: 42 tests
+python -m pytest -q -W ignore aiops_platform/tests        # platform: 44 tests
 python -m pytest -q agent1_monitoring/tests               # each agent's own suite (unchanged)
 python -m pytest -q agent2_diagnosis/tests
 python -m pytest -q agent3_security_quality/tests API/tests
