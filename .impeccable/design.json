@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T00:00:00Z",
+  "title": "Design System: AIOps Control Room",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Cool Paper", "canonical": "#f4f5f3", "tonalRamp": ["#232523", "#3b3d3b", "#555755", "#727471", "#929591", "#b4b6b3", "#d6d8d4", "#f4f5f3"] },
+      "paper-frame": { "role": "neutral", "displayName": "Frame Paper", "canonical": "#e8eae6", "tonalRamp": ["#222421", "#393c38", "#535651", "#6f726d", "#8e918b", "#afb2ac", "#d0d3cd", "#e8eae6"] },
+      "paper-sheet": { "role": "neutral", "displayName": "Sheet White", "canonical": "#ffffff", "tonalRamp": ["#262626", "#3d3d3d", "#575757", "#737373", "#939393", "#b5b5b5", "#d9d9d9", "#ffffff"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#121314", "tonalRamp": ["#121314", "#25272a", "#33373a", "#44484c", "#61666a", "#8a8f93", "#b6babd", "#e2e4e6"] },
+      "ink-secondary": { "role": "neutral", "displayName": "Ink Secondary", "canonical": "#44484c", "tonalRamp": ["#121314", "#25272a", "#33373a", "#44484c", "#61666a", "#8a8f93", "#b6babd", "#e2e4e6"] },
+      "ink-tertiary": { "role": "neutral", "displayName": "Ink Tertiary", "canonical": "#61666a", "tonalRamp": ["#121314", "#25272a", "#33373a", "#44484c", "#61666a", "#8a8f93", "#b6babd", "#e2e4e6"] },
+      "rule": { "role": "neutral", "displayName": "Rule", "canonical": "#c9cdc8", "tonalRamp": ["#1f221f", "#363936", "#4f534e", "#6b6f6a", "#8a8e89", "#a9aea8", "#c9cdc8", "#e8eae6"] },
+      "rule-strong": { "role": "neutral", "displayName": "Rule Strong", "canonical": "#a9aea8", "tonalRamp": ["#1f221f", "#363936", "#4f534e", "#6b6f6a", "#8a8e89", "#a9aea8", "#c9cdc8", "#e8eae6"] },
+      "signal": { "role": "primary", "displayName": "Signal Red", "canonical": "#d52b1e", "tonalRamp": ["#3d0b07", "#62130d", "#8a1a12", "#b5231a", "#d52b1e", "#e8675d", "#f3aaa4", "#fbebe9"] },
+      "signal-ink": { "role": "primary", "displayName": "Signal Ink", "canonical": "#b5231a", "tonalRamp": ["#3d0b07", "#62130d", "#8a1a12", "#b5231a", "#d52b1e", "#e8675d", "#f3aaa4", "#fbebe9"] },
+      "signal-wash": { "role": "primary", "displayName": "Signal Wash", "canonical": "#fbebe9", "tonalRamp": ["#3d0b07", "#62130d", "#8a1a12", "#b5231a", "#d52b1e", "#e8675d", "#f3aaa4", "#fbebe9"] },
+      "verified": { "role": "secondary", "displayName": "Verified Green", "canonical": "#1d6b40", "tonalRamp": ["#0a2716", "#114025", "#1d6b40", "#2b8754", "#4fa874", "#85c49e", "#bcdcc8", "#e6f0ea"] },
+      "verified-wash": { "role": "secondary", "displayName": "Verified Wash", "canonical": "#e6f0ea", "tonalRamp": ["#0a2716", "#114025", "#1d6b40", "#2b8754", "#4fa874", "#85c49e", "#bcdcc8", "#e6f0ea"] },
+      "ink-reversed-muted": { "role": "neutral", "displayName": "Reversed Muted", "canonical": "#c4c8c3", "tonalRamp": ["#1f221f", "#363936", "#4f534e", "#6b6f6a", "#8a8e89", "#a9aea8", "#c4c8c3", "#e8eae6"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Loop counts and totals, sheet title, decision action, sign-in heading." },
+      "body": { "displayName": "Body", "purpose": "Running copy, leads (max 62ch), controls." },
+      "body-strong": { "displayName": "Body Strong", "purpose": "Buttons and register service names." },
+      "section-title": { "displayName": "Section Title", "purpose": "Register heading and sheet block headings, uppercase." },
+      "label": { "displayName": "Label", "purpose": "Column heads, stage names, total labels, operator roles, uppercase." },
+      "data": { "displayName": "Data", "purpose": "Table cells, key/value lists, timeline, agents, bars." },
+      "mono": { "displayName": "Mono", "purpose": "Patches, hashes, IDs, tokens and keys only." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Single ease-out curve for every state transition." },
+      { "name": "duration-state", "value": "160ms", "purpose": "Hover, pressed and selection colour changes on buttons, rows and stages." },
+      { "name": "duration-rail", "value": "220ms", "purpose": "Stage rail cells changing state as a workflow advances." },
+      { "name": "duration-bar", "value": "300ms", "purpose": "Risk and score bar fills." },
+      { "name": "reduced-motion", "value": "0ms", "purpose": "All transitions and animations disabled under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "desktop", "value": "1181px", "purpose": "Sticky band, loop strip and sheet; 7/5 split." },
+      { "name": "stacked", "value": "1180px", "purpose": "Single column; only the band is sticky." },
+      { "name": "phone", "value": "720px", "purpose": "16px gutter; 4-column numbered stage strip; rail moves under the service name." }
+    ],
+    "layout": {
+      "columns": 12,
+      "columnGap": "32px",
+      "gutter": "24px (16px at 720px and below)",
+      "bandHeight": "52px",
+      "loopHeight": "82px",
+      "registerColumns": "1-7",
+      "sheetColumns": "8-12"
+    }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Square ruled button, transparent on paper.",
+      "html": "<button class=\"ds-button\">Reject</button>",
+      "css": ".ds-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--ink, #121314); border-radius: 0; background: transparent; color: var(--ink, #121314); padding: 8px 16px; font: 700 0.9375rem/1.45 'Schibsted Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1); } .ds-button:hover { background: var(--paper-2, #e8eae6); } .ds-button:focus-visible { outline: 2px solid #121314; outline-offset: 2px; } .ds-button:disabled { opacity: 0.45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid ink button for the single committing action (Approve, Sign in).",
+      "html": "<button class=\"ds-button-primary\">Approve</button>",
+      "css": ".ds-button-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #121314; border-radius: 0; background: var(--ink, #121314); color: var(--paper, #f4f5f3); padding: 8px 16px; font: 700 0.9375rem/1.45 'Schibsted Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1); } .ds-button-primary:hover { background: #33373a; } .ds-button-primary:focus-visible { outline: 2px solid #121314; outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Filter",
+      "kind": "chip",
+      "refersTo": "segmented-option",
+      "description": "Ink-ruled radio strip; the checked option reverses to ink, the decision count is a solid red block.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"true\">All</button><button role=\"radio\" aria-checked=\"false\">Needs decision <span class=\"ds-seg-count\">2</span></button><button role=\"radio\" aria-checked=\"false\">Closed</button></div>",
+      "css": ".ds-seg { display: inline-flex; border: 1px solid #121314; font-family: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; } .ds-seg button { border: 0; border-right: 1px solid #121314; background: transparent; color: #121314; padding: 6px 12px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; line-height: 1.45; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; } .ds-seg button:last-child { border-right: 0; } .ds-seg button:hover { background: #e8eae6; } .ds-seg button:focus-visible { outline: 2px solid #121314; outline-offset: 2px; } .ds-seg button[aria-checked=\"true\"] { background: #121314; color: #f4f5f3; } .ds-seg-count { background: #d52b1e; color: #fff; font-weight: 800; padding: 0 5px; line-height: 1.4; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Square white field on a strong hairline; ink border and ink outline on focus.",
+      "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10zM10.6 10.6L14 14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"square\"/></svg><input type=\"search\" placeholder=\"Search service, ID or status\"></label>",
+      "css": ".ds-search { position: relative; display: flex; width: 320px; } .ds-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #61666a; } .ds-search input { width: 100%; border: 1px solid #a9aea8; border-radius: 0; background: #ffffff; color: #121314; padding: 6px 12px 6px 32px; font: 400 0.8125rem/1.45 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; } .ds-search input::placeholder { color: #61666a; } .ds-search input:hover { border-color: #121314; } .ds-search input:focus-visible { outline: 2px solid #121314; outline-offset: 0; border-color: #121314; }"
+    },
+    {
+      "name": "Title Band",
+      "kind": "nav",
+      "refersTo": "title-band",
+      "description": "52px ink band: wordmark with red corner block, square live dot, operator identity.",
+      "html": "<header class=\"ds-band\"><span class=\"ds-wordmark\"><span class=\"ds-mark\"></span>AIOps Control Room</span><span class=\"ds-status\">Live, updated 12:04:31</span><span class=\"ds-op\"><b>A. Operator</b> <span>SRE</span></span></header>",
+      "css": ".ds-band { height: 52px; display: flex; align-items: center; gap: 24px; padding: 0 24px; background: #121314; color: #f4f5f3; font-family: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; font-size: 0.9375rem; } .ds-wordmark { display: inline-flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: -0.01em; } .ds-mark { width: 14px; height: 14px; background: #f4f5f3; position: relative; } .ds-mark::after { content: ''; position: absolute; right: 0; top: 0; width: 6px; height: 6px; background: #d52b1e; } .ds-status { font-size: 0.8125rem; color: #c4c8c3; display: flex; align-items: center; gap: 8px; margin-right: auto; } .ds-status::before { content: ''; width: 8px; height: 8px; background: #4fbf7d; } .ds-op { font-size: 0.8125rem; display: flex; gap: 12px; } .ds-op span { color: #c4c8c3; text-transform: uppercase; letter-spacing: 0.06em; }"
+    },
+    {
+      "name": "Stage Rail",
+      "kind": "custom",
+      "refersTo": "rail-cell",
+      "description": "Signature: seven 14px square cells, one per loop stage, identical on every register row.",
+      "html": "<span class=\"ds-rail\" aria-label=\"Loop position: waiting for approval\"><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"wait\"></i><i></i><i></i><i></i></span> <span class=\"ds-rail\"><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"now\"></i><i></i><i></i></span> <span class=\"ds-rail\"><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"done\"></i><i data-s=\"ok\"></i><i data-s=\"done\"></i></span>",
+      "css": ".ds-rail { display: inline-grid; grid-template-columns: repeat(7, 14px); column-gap: 4px; align-items: center; margin-right: 24px; } .ds-rail i { display: block; width: 14px; height: 14px; border: 1px solid #a9aea8; background: transparent; transition: background-color 220ms cubic-bezier(0.16,1,0.3,1), border-color 220ms cubic-bezier(0.16,1,0.3,1); } .ds-rail i[data-s=\"done\"] { background: #121314; border-color: #121314; } .ds-rail i[data-s=\"now\"] { border: 2px solid #121314; background: repeating-linear-gradient(135deg, #121314 0 2px, transparent 2px 5px); } .ds-rail i[data-s=\"wait\"], .ds-rail i[data-s=\"fail\"] { background: #d52b1e; border-color: #d52b1e; } .ds-rail i[data-s=\"ok\"] { background: #1d6b40; border-color: #1d6b40; }"
+    },
+    {
+      "name": "Enlarged Stage Rail",
+      "kind": "custom",
+      "refersTo": "rail-cell",
+      "description": "The rail at the head of the sheet: numbered, named and timed, filled by state.",
+      "html": "<ol class=\"ds-rail-lg\"><li data-s=\"done\"><b>01</b><span>Detect</span><time>12:01</time></li><li data-s=\"done\"><b>02</b><span>Diagnose</span><time>12:02</time></li><li data-s=\"done\"><b>03</b><span>Decide</span><time>12:02</time></li><li data-s=\"wait\"><b>04</b><span>Approve</span><time>waiting</time></li><li><b>05</b><span>Execute</span><time></time></li><li><b>06</b><span>Verify</span><time></time></li><li><b>07</b><span>Close</span><time></time></li></ol>",
+      "css": ".ds-rail-lg { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid #121314; border-bottom: 1px solid #c9cdc8; font: 0.8125rem/1.45 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; color: #121314; background: #fff; } .ds-rail-lg li { padding: 8px 8px 12px; border-right: 1px solid #c9cdc8; min-width: 0; } .ds-rail-lg li:last-child { border-right: 0; } .ds-rail-lg b { display: block; font-weight: 800; } .ds-rail-lg span { display: block; color: #44484c; } .ds-rail-lg time { display: block; color: #61666a; margin-top: 2px; min-height: 1.45em; } .ds-rail-lg li[data-s=\"done\"] { background: #121314; color: #f4f5f3; } .ds-rail-lg li[data-s=\"done\"] span, .ds-rail-lg li[data-s=\"done\"] time { color: #c4c8c3; } .ds-rail-lg li[data-s=\"now\"] { background: linear-gradient(#121314, #121314) top / 100% 3px no-repeat; } .ds-rail-lg li[data-s=\"wait\"], .ds-rail-lg li[data-s=\"fail\"] { background: #d52b1e; color: #fff; } .ds-rail-lg li[data-s=\"wait\"] span, .ds-rail-lg li[data-s=\"wait\"] time { color: #fff; } .ds-rail-lg li[data-s=\"ok\"] { background: #1d6b40; color: #fff; }"
+    },
+    {
+      "name": "Loop Stage",
+      "kind": "custom",
+      "refersTo": "loop-stage-hot",
+      "description": "Stage filter in the loop strip: number, uppercase name, display count; pressed reverses to ink, the waiting stage fills red.",
+      "html": "<div class=\"ds-loop\"><button><span class=\"no\">03</span><span class=\"nm\">Decide</span><span class=\"ct\">1</span></button><button class=\"hot\"><span class=\"no\">04</span><span class=\"nm\">Approve</span><span class=\"ct\">2</span></button><button aria-pressed=\"true\"><span class=\"no\">05</span><span class=\"nm\">Execute</span><span class=\"ct\">1</span></button></div>",
+      "css": ".ds-loop { display: grid; grid-template-columns: repeat(3, 120px); background: #e8eae6; border-bottom: 1px solid #121314; font-family: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; } .ds-loop button { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline; padding: 12px 16px; border: 0; border-right: 1px solid #c9cdc8; background: transparent; color: #121314; text-align: left; cursor: pointer; font-size: 0.8125rem; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1); } .ds-loop button:hover { background: #dfe2dd; } .ds-loop button:focus-visible { outline: 2px solid #121314; outline-offset: 2px; } .ds-loop .no { font-weight: 800; letter-spacing: 0.04em; } .ds-loop .nm { font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #44484c; } .ds-loop .ct { grid-column: 1 / -1; font-size: 2rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; } .ds-loop button[aria-pressed=\"true\"] { background: #121314; color: #f4f5f3; } .ds-loop button[aria-pressed=\"true\"] .nm { color: #c4c8c3; } .ds-loop .hot { background: #d52b1e; color: #fff; } .ds-loop .hot .nm { color: #fff; } .ds-loop .hot:hover { background: #bf2419; }"
+    },
+    {
+      "name": "Decision Block",
+      "kind": "card",
+      "refersTo": "decision-band",
+      "description": "Red-ruled wash zone: red band with countdown and permission, the action, the exact from-to patch, then Approve/Reject.",
+      "html": "<section class=\"ds-decision\"><div class=\"ds-dband\"><h2>Decision required</h2><span class=\"cd\">04:12 left</span><span class=\"perm\">You may approve this rollback</span></div><div class=\"ds-dbody\"><p class=\"act\">Roll back checkout-api<small>deployment/checkout-api in prod</small></p><div class=\"ds-change\"><b>image</b><span class=\"from\"><code>checkout:1.8.0</code></span><span class=\"to\"><code>checkout:1.7.3</code></span></div><div class=\"ds-foot\"><textarea rows=\"1\" placeholder=\"Comment\"></textarea><button class=\"rj\">Reject</button><button class=\"ap\">Approve</button></div></div></section>",
+      "css": ".ds-decision { border-top: 1px solid #d52b1e; border-bottom: 1px solid #d52b1e; background: #fbebe9; color: #121314; font: 0.9375rem/1.45 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; } .ds-dband { display: flex; align-items: center; gap: 12px; background: #d52b1e; color: #fff; padding: 12px 24px; } .ds-dband h2 { margin: 0; font-size: 0.8125rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; } .ds-dband .cd { font-weight: 800; } .ds-dband .perm { margin-left: auto; font-size: 0.8125rem; } .ds-dbody { padding: 12px 24px 0; display: grid; gap: 12px; } .ds-dbody .act { margin: 0; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; } .ds-dbody .act small { display: block; font-size: 0.9375rem; font-weight: 600; letter-spacing: 0; color: #44484c; margin-top: 4px; } .ds-change { display: grid; grid-template-columns: 6rem 1fr; gap: 2px 12px; padding: 12px; background: #fff; border: 1px solid #c9cdc8; font-size: 0.8125rem; } .ds-change b { grid-row: span 2; } .ds-change code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.8125rem; } .ds-change .from { color: #44484c; text-decoration: line-through; text-decoration-color: #a9aea8; } .ds-change .to { font-weight: 700; } .ds-foot { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: end; border-top: 1px solid #d52b1e; padding: 12px 0; } .ds-foot textarea { min-height: 40px; border: 1px solid #a9aea8; border-radius: 0; background: #fff; padding: 8px 12px; font: inherit; resize: vertical; } .ds-foot textarea:focus-visible { outline: 2px solid #121314; outline-offset: 0; border-color: #121314; } .ds-foot button { min-height: 40px; border: 1px solid #121314; border-radius: 0; padding: 8px 16px; font-family: inherit; font-size: 0.9375rem; font-weight: 700; line-height: 1.45; cursor: pointer; } .ds-foot .rj { background: transparent; color: #121314; } .ds-foot .rj:hover { background: #e8eae6; } .ds-foot .ap { background: #121314; color: #f4f5f3; } .ds-foot .ap:hover { background: #33373a; } .ds-foot button:focus-visible { outline: 2px solid #121314; outline-offset: 2px; }"
+    },
+    {
+      "name": "Outcome Band",
+      "kind": "custom",
+      "refersTo": "outcome-verified",
+      "description": "Full-width solid band announcing how a workflow ended: green verified, red escalated, ink otherwise.",
+      "html": "<div class=\"ds-outcome\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M3 8.5l3.2 3L13 4.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"square\"/></svg><div>Recovery verified<small>Error rate back under threshold for 3 checks.</small></div></div>",
+      "css": ".ds-outcome { display: flex; gap: 12px; align-items: flex-start; padding: 16px 24px; background: #1d6b40; color: #fff; font: 600 0.9375rem/1.45 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; } .ds-outcome svg { margin-top: 3px; flex: none; } .ds-outcome small { display: block; font-size: 0.8125rem; font-weight: 400; opacity: 0.9; margin-top: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Swiss Operating Manual",
+    "overview": "The closed loop is the layout. Every workflow is a numbered process set on one rigorous 12-column grid, so the viewer reads a record's position in the loop (01 Detect, 02 Diagnose, 03 Decide, 04 Approve, 05 Execute, 06 Verify, 07 Close) before reading the record itself. The world is the International Typographic Style turned into an operating document: cool paper, two inks, one grotesque, hairline rules, and black bands with reversed type standing in for every heavier device a dashboard would normally reach for.\n\nDensity is high but calm. Information is ranked by weight, case and reversal rather than by size or colour, so the screen stays quiet until something needs a person. When it does, signal red appears, and it appears only for that, or for failure. Green appears only when recovery has been verified. Everything else is ink on paper.\n\nThe system refuses the category default of a dark sidebar, KPI cards and status pills scattered over tables. Depth comes from paper layers and ink rules, never from shadow; shapes are square, never rounded.",
+    "keyCharacteristics": [
+      "Cool paper ground, near-black ink, a second paper layer for the frame and a white sheet for the record.",
+      "Signal red means \"a human must decide\" or failure; green means verified; nothing else is coloured.",
+      "One self-hosted grotesque at exactly three sizes (13 / 15 / 32px), ranked by weight, case and reversal.",
+      "1px hairlines are the only dividers; ink rules mark structure, grey rules mark rows.",
+      "The 7-cell stage rail is the signature: on every register row, enlarged, numbered and timed at the head of the sheet."
+    ],
+    "rules": [
+      { "name": "The Human-Decision Red Rule", "body": "Signal red is used for exactly two meanings: a human must decide, or something failed. Never use it for emphasis, branding, or \"new\".", "section": "colors" },
+      { "name": "The Verified-Only Green Rule", "body": "Green means recovery or integrity was verified. It is never a generic \"success\" or \"online\" decoration on paper.", "section": "colors" },
+      { "name": "The Two Inks Rule", "body": "Every other surface is ink on paper. Rank is made with weight and reversal, not with additional hues.", "section": "colors" },
+      { "name": "The Three Sizes Rule", "body": "Only 13px, 15px and 32px exist. A new level of hierarchy is made with weight, case or reversal, never with a fourth size.", "section": "typography" },
+      { "name": "The Aligned Figures Rule", "body": "Tabular figures apply only where numbers line up in a column or a fixed slot (priority and opened columns, numeric data cells, stage counts, totals, meta values, bar values, band status). Clock times, the countdown and left-aligned values stay proportional.", "section": "typography" },
+      { "name": "The Mono for Machines Rule", "body": "Monospace is reserved for patches, hashes, IDs, tokens and keys. Never for numbers, labels or decoration.", "section": "typography" },
+      { "name": "The Registered Strip Rule", "body": "The loop strip and the workspace share one 12-column grid; stages align over the register, totals over the sheet, and the dividing ink rule continues through both.", "section": "layout" },
+      { "name": "The Hairline Only Rule", "body": "1px rules are the only dividers: ink for structure (strip bottom, sheet edge, table heads, register head), grey rule for rows and cells, signal for the decision block. No shadows, no thick borders, no card outlines.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every new surface on the shared 12-column grid and register any strip to it.",
+      "Do rank with weight (400/600/700/800), uppercase tracked labels, and ink reversal before reaching for anything else.",
+      "Do show a workflow's loop position with the 7-cell stage rail wherever a workflow is listed.",
+      "Do use signal red only when a human must decide or something failed, and green only when it is verified.",
+      "Do use tabular figures only for numbers aligned in columns or fixed slots.",
+      "Do use inline stroked SVG icons at 16px (1.6 stroke, square caps) from the shared sprite."
+    ],
+    "donts": [
+      "Don't add shadows, rounded corners, cards or pills; the system is flat, square and ruled.",
+      "Don't introduce a fourth type size or a second display face.",
+      "Don't use monospace for anything but patches, hashes, IDs, tokens and keys.",
+      "Don't use red or green as decoration, emphasis or branding.",
+      "Don't use a dark sidebar or KPI card grid; the loop strip carries the totals."
+    ]
+  }
+}

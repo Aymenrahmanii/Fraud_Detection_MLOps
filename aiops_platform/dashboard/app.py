@@ -10,6 +10,7 @@ request. (A production deployment puts SSO/OIDC in front of this.)
 """
 
 import hmac
+import mimetypes
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -25,6 +26,8 @@ from aiops_platform.context.service import ContextService, Principal
 from aiops_platform.hitl.service import HitlError, Operator
 
 WEB = Path(__file__).with_name("web")
+# Some hosts (Windows, slim images) have no MIME entry for the self-hosted font.
+mimetypes.add_type("font/woff2", ".woff2")
 DEFAULT_OPERATORS = Path(__file__).with_name("operators.example.yaml")
 
 

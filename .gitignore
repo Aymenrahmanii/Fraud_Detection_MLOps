@@ -35,3 +35,8 @@ artifacts/agent6/
 /build/
 /dist/
 !agent6_mlops_lifecycle/.env.example
+
+# Impeccable local state (review captures, hook cache, decision-page logs)
+.impeccable/hook.cache.json
+.impeccable/questions/
+.impeccable/review/
