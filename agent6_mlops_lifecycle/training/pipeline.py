@@ -226,7 +226,12 @@ class SklearnTrainingPipeline:
             model_info = mlflow.sklearn.log_model(
                 sk_model=candidate,
                 name="candidate",
-                skops_trusted_types=["numpy.dtype"],
+                # ColumnTransformer (sklearn 1.6) also serializes its internal
+                # remainder-columns list; skops rejects the save without it.
+                skops_trusted_types=[
+                    "numpy.dtype",
+                    "sklearn.compose._column_transformer._RemainderColsList",
+                ],
                 input_example=pd.DataFrame(_feature_rows(train[:2], features)),
             )
             return CandidateEvaluation(
