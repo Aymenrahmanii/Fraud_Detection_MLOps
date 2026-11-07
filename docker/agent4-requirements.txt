@@ -1,0 +1,6 @@
+# Agent 4's runtime dependencies without its exact pins (its requirements.txt
+# pins pydantic/pytest/cryptography versions that conflict with the shared lock;
+# Agent 4's test suite passes on the shared versions).
+kubernetes==35.0.0
+cryptography>=46
+mcp>=2.3,<3

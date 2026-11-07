@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIOps Control Room</title>
+  <meta name="description" content="Operator console of the six-agent DevOps / MLOps platform: incidents, approvals, audit.">
+  <link rel="preload" href="/static/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23121314'/%3E%3Crect x='3' y='3' width='4' height='10' fill='%23f4f5f3'/%3E%3Crect x='9' y='3' width='4' height='4' fill='%23d52b1e'/%3E%3C/svg%3E">
+</head>
+<body>
+  <svg width="0" height="0" class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" /></symbol>
+    <symbol id="i-cross" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></symbol>
+    <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" /></symbol>
+    <symbol id="i-back" viewBox="0 0 16 16"><path d="M13 8H3M7 4L3 8l4 4" /></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16"><path d="M5.5 5.5h7v7h-7z" /><path d="M10.5 5.5v-2h-7v7h2" /></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><path d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10zM10.6 10.6L14 14" /></symbol>
+    <symbol id="i-bolt" viewBox="0 0 16 16"><path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z" /></symbol>
+    <symbol id="i-chain" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1" /></symbol>
+  </svg>
+
+  <header class="band">
+    <a class="wordmark" href="#" aria-label="AIOps Control Room, home">
+      <span class="wordmark-mark" aria-hidden="true"></span>AIOps Control Room
+    </a>
+    <p class="band-status" id="live" role="status" aria-live="polite">Not signed in</p>
+    <div class="band-operator" id="operator" hidden>
+      <span class="operator-name" id="operator-name"></span>
+      <span class="operator-roles" id="operator-roles"></span>
+      <button type="button" class="link-button on-dark" id="signout">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="loop" id="loop" aria-label="Closed-loop stages: filter workflows by stage">
+    <ol class="loop-stages" id="loop-stages"></ol>
+    <div class="loop-totals" id="loop-totals"></div>
+  </nav>
+
+  <main class="workspace" id="workspace" hidden>
+    <section class="register" aria-labelledby="register-title">
+      <div class="register-head">
+        <h1 class="section-title" id="register-title">Workflows</h1>
+        <div class="inject" id="inject" hidden>
+          <span class="inject-label" id="inject-label">Inject fault</span>
+          <div class="inject-buttons" id="inject-buttons" role="group" aria-labelledby="inject-label"></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="segmented" role="radiogroup" aria-label="Show" id="view-filter">
+          <button type="button" role="radio" data-view="all" aria-checked="true">All</button>
+          <button type="button" role="radio" data-view="decide" aria-checked="false">Needs decision <span class="seg-count" id="count-decide"></span></button>
+          <button type="button" role="radio" data-view="active" aria-checked="false">In progress</button>
+          <button type="button" role="radio" data-view="closed" aria-checked="false">Closed</button>
+        </div>
+        <label class="select">
+          <span class="visually-hidden">Workflow kind</span>
+          <select id="kind-filter">
+            <option value="">All kinds</option>
+            <option value="INCIDENT">Incidents</option>
+            <option value="RELEASE">Releases</option>
+            <option value="MLOPS">Model checks</option>
+          </select>
+        </label>
+        <label class="search">
+          <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+          <span class="visually-hidden">Search workflows</span>
+          <input type="search" id="search" placeholder="Search service, ID or status" autocomplete="off">
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table class="register-table" aria-describedby="register-hint">
+          <thead>
+            <tr>
+              <th scope="col">Workflow</th>
+              <th scope="col" class="col-rail">Loop position</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="col-num">Priority</th>
+              <th scope="col" class="col-num">Opened</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <p class="hint" id="register-hint">Select a row to open its sheet. Arrow keys move the selection; <kbd>/</kbd> searches.</p>
+      </div>
+      <dl class="legend" aria-label="How to read the loop position">
+        <div><dt><span class="rail"><i data-s="done"></i></span></dt><dd>Stage completed</dd></div>
+        <div><dt><span class="rail"><i data-s="now"></i></span></dt><dd>Agents working</dd></div>
+        <div><dt><span class="rail"><i data-s="wait"></i></span></dt><dd>Waiting for a human</dd></div>
+        <div><dt><span class="rail"><i data-s="ok"></i></span></dt><dd>Recovery verified</dd></div>
+        <div><dt><span class="rail"><i data-s="fail"></i></span></dt><dd>Escalated or blocked</dd></div>
+      </dl>
+    </section>
+
+    <section class="sheet" id="sheet" aria-label="Selected workflow" tabindex="-1"></section>
+  </main>
+
+  <section class="signin" id="signin" aria-labelledby="signin-title">
+    <form class="signin-form" id="signin-form" autocomplete="off">
+      <h1 id="signin-title">Sign in to operate</h1>
+      <p>Your token decides what you may approve: SRE approves rollbacks and scaling, the release manager approves deployments, the ML lead approves model promotion.</p>
+      <label class="field">
+        <span>Operator token</span>
+        <input type="password" id="token" required spellcheck="false" aria-describedby="signin-help signin-error">
+      </label>
+      <p class="field-help" id="signin-help">Development tokens: <code>dev-sre-token</code>, <code>dev-release-token</code>, <code>dev-ml-token</code>, <code>dev-viewer-token</code>.</p>
+      <p class="field-error" id="signin-error" role="alert"></p>
+      <button type="submit" class="button primary">Sign in</button>
+    </form>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

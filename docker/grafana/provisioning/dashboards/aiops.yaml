@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: aiops-platform
+    folder: AIOps platform
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,4 @@
+# drain3 (Agent 1) declares cachetools==4.2.1; mlflow 3 (fraud API, Agent 6)
+# requires cachetools>=5. drain3 only uses cachetools' LRU cache, which is
+# unchanged; Agent 1's full test suite passes with this override.
+cachetools==6.2.6

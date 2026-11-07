@@ -1,0 +1,29 @@
+# Shared platform (orchestrator, bus, Context Service, HITL, dashboard).
+# Install together with the agents, constrained by the tested lock:
+#   pip install -c agent6_mlops_lifecycle/constraints-tested.txt -r aiops_platform/requirements.txt
+pydantic>=2.12,<3
+pydantic-settings>=2.6,<3
+PyYAML>=6,<7
+# Context Service persistence: PostgreSQL in compose, SQLite in tests.
+sqlalchemy[asyncio]>=2.0,<2.1
+aiosqlite>=0.20,<1
+psycopg[binary]>=3.2,<4
+# Event backbone and hot state.
+aiokafka>=0.11,<1
+redis>=5,<7
+# Orchestrator graph + durable checkpoints.
+langgraph>=0.4,<2
+langgraph-checkpoint-postgres>=2,<4
+# gRPC: grpcio-tools 1.71 is the last line built for protobuf 5 (mlflow needs <6).
+grpcio==1.71.2
+grpcio-tools==1.71.2
+# Approval permits in Agent 4's Ed25519 format.
+cryptography>=46
+# Dashboard and HTTP APIs.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+httpx>=0.28,<1
+prometheus-client>=0.21,<1
+# Tests.
+pytest>=8.3,<9
+pytest-asyncio>=0.24,<2

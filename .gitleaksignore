@@ -1,0 +1,7 @@
+# Reviewed false positives, one exact finding each (commit:file:rule:line).
+# Every other occurrence, in any file or later commit, is still reported.
+
+# hitl/keys.py line 29 in that commit is a dataclass field's type annotation
+# (an Ed25519 key type), not key material. Private keys are only ever read
+# from PEM files mounted as compose/Kubernetes secrets.
+1f4bc79a865e06d3f55e8cb19356e16d74dabdee:aiops_platform/hitl/keys.py:generic-api-key:29
