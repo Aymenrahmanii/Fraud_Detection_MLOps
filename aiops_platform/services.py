@@ -303,9 +303,11 @@ async def run_dashboard() -> None:
     from aiops_platform.rpc.context_rpc import GrpcContextService
 
     credential = Credential.from_env(Role.DASHBOARD, "dashboard")
+    orchestrator = HttpOrchestrator(env("ORCHESTRATOR_URL"), credential)
     scenarios = None
     if os.environ.get("SIM_CLUSTER_URL"):
         from aiops_platform.sim.remote import RemoteCluster
+        from aiops_platform.sim.scenarios import model_check_request, release_v28_request
 
         cluster = RemoteCluster(env("SIM_CLUSTER_URL"))
 
@@ -315,10 +317,30 @@ async def run_dashboard() -> None:
 
             return run
 
+        # The same scenarios as `demo serve`: faults go to the simulated cluster (Agent 1
+        # detects them); releases and model checks start a workflow at the Orchestrator.
+        def release(fixed: bool):
+            async def run():
+                request = release_v28_request(cluster, fixed)
+                await orchestrator.start_release(**request)
+                return [request["release_id"]]
+
+            return run
+
+        async def model_check():
+            request = model_check_request()
+            await orchestrator.start_model_check(**request)
+            return [request["check_id"]]
+
         scenarios = {name: inject(name) for name in ("memory_leak_after_deploy", "cpu_load_spike", "reset")}
+        scenarios |= {
+            "model_drift_check": model_check,
+            "release_v28_failing_test": release(False),
+            "release_v28_fixed": release(True),
+        }
     app = create_app(
         context=GrpcContextService(channel("CONTEXT_TARGET"), credential),
-        orchestrator=HttpOrchestrator(env("ORCHESTRATOR_URL"), credential),
+        orchestrator=orchestrator,
         operators=load_operators(Path(env("OPERATORS_FILE", str(DEFAULT_OPERATORS)))),
         scenarios=scenarios,
     )

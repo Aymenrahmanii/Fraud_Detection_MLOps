@@ -12,8 +12,19 @@ Two ways to run the platform:
 | Open | <http://127.0.0.1:8092> | <http://127.0.0.1:8090> |
 | What runs | all six agents, Orchestrator, policy, HITL, Agent 4, in one process | the same code as separate containers over Kafka, gRPC, Postgres, Redis |
 | Timings | observation windows shortened: a loop closes in about 1 s | real: Agent 1 watches 60 s windows, MTTR about 93 s |
-| Scenarios | memory leak, CPU spike, model drift, release (failing test), release (fixed) | memory leak, CPU spike, reset |
-| Use it for | the use cases, rehearsing, the live demo | real timings, Grafana, chaos experiments |
+| Scenarios | memory leak, CPU spike, model drift, release (failing test), release (fixed) | the same five, plus *Reset cluster* |
+| Use it for | the use cases, rehearsing, the live demo | the use cases with real timings, Grafana, chaos experiments |
+
+Every use case below works on both. On Docker, rebuild after pulling new code
+(`docker compose -f compose.platform.yaml up -d --build`) and expect real
+durations: an incident appears within about a minute of the fault, and a change
+takes about 90 s from approval to verified recovery (45 s rollout check by
+Agent 1 for Agent 4, then a 45 s SLO window).
+
+**More workflows.** Each release or model-check click is a new workflow. Faults
+open at most one incident per service (payment-service and checkout-api) while
+it is open; once it closes, the same button opens a new one. *Reset cluster*
+returns the simulated cluster to its healthy state.
 
 Operator tokens (the role decides what you may approve):
 
@@ -26,6 +37,15 @@ Operator tokens (the role decides what you may approve):
 
 Restarting the demo server resets it to a clean state. Port 8090 belongs to the
 Docker dashboard when the stack is up, so run the demo server on another port.
+
+Without the buttons, the same workflows start through the API, e.g. a release
+(the release manager's token):
+
+```powershell
+$body = '{"service_id":"payment-service","namespace":"prod","current_version":"v2.6","version":"v2.8","commit":"c0ffee2","assessment":{"assessment_id":"A-1","commit":"c0ffee2","artifact":{"image":"registry.local/payment-service:v2.8"},"tests":{"total":124,"passed":124,"failed":0,"skipped":0,"coverage_pct":87.3},"quality":{"gate":"PASSED"},"security":{},"decision":"ALLOW","blocking_reasons":[]}}'
+Invoke-RestMethod -Method Post http://127.0.0.1:8090/api/releases -Headers @{Authorization="Bearer dev-release-token"} -ContentType application/json -Body $body
+Invoke-RestMethod -Method Post http://127.0.0.1:8090/api/model-checks/machine-failure -Headers @{Authorization="Bearer dev-ml-token"}
+```
 
 ---
 
@@ -203,8 +223,10 @@ Have the Docker stack and Grafana open in other tabs if you show them.
 | 8-9 | Grafana | "Agent latency, policy distribution, retries and dead letters, live." |
 | 9-10 | Benchmark output (prepared beforehand) | "20 concurrent incidents with duplicated messages and failing writes: exactly one change each, every audit chain valid." |
 
-Run UC6 (model drift, ~30 s) early in the background if you want to show it,
-and keep the `--auto` output from section UC9 ready as a backup.
+Run UC6 (model drift, ~30 s; longer on Docker) early in the background if you
+want to show it, and keep the `--auto` output from section UC9 ready as a backup.
+On Docker, start UC1 a minute before you need it: detection waits for Agent 1's
+window, and approval to recovery takes about 90 s.
 
 ---
 

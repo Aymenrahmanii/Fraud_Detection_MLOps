@@ -14,7 +14,6 @@ import json
 import logging
 import os
 import tempfile
-import time
 import warnings
 from pathlib import Path
 
@@ -24,7 +23,16 @@ from aiops_platform.experiments.metrics import evaluate_workflows
 from aiops_platform.hitl.service import Operator
 from aiops_platform.orchestrator.graph import approval_ttl_seconds
 from aiops_platform.runtime import Platform
-from aiops_platform.sim.scenarios import CHECKOUT, PAYMENT, base_cluster, cpu_load_spike, memory_leak_after_deploy
+from aiops_platform.sim.scenarios import (
+    CHECKOUT,
+    PAYMENT,
+    base_cluster,
+    cpu_load_spike,
+    memory_leak_after_deploy,
+    model_check_request,
+    release_assessment,
+    release_v28_request,
+)
 
 SRE = Operator(subject="alice@sre", roles=frozenset({"sre"}))
 RELEASE = Operator(subject="rita@release", roles=frozenset({"release-manager"}))
@@ -59,26 +67,6 @@ async def show(platform: Platform, incident_id: str) -> None:
         f"   -> {incident_id}: stage={st.get('stage')} outcome={st.get('outcome')} "
         f"action={sel.get('type')} policy={pol.get('decision')} root_cause={st.get('consensus', {}).get('primary_root_cause')}"
     )
-
-
-def release_assessment(fixed: bool, assessment_id: str, commit: str) -> dict:
-    """Agent 3's assessment of payment-service v2.8: one failing test, or the fixed build."""
-    return {
-        "assessment_id": assessment_id,
-        "commit": commit,
-        "artifact": {"image": "registry.local/payment-service:v2.8"},
-        "tests": {
-            "total": 124,
-            "passed": 124 if fixed else 123,
-            "failed": 0 if fixed else 1,
-            "skipped": 0,
-            "coverage_pct": 87.3 if fixed else 86.0,
-        },
-        "quality": {"gate": "PASSED"},
-        "security": {},
-        "decision": "ALLOW" if fixed else "BLOCK",
-        "blocking_reasons": [] if fixed else ["1 failing test"],
-    }
 
 
 async def run_auto(workdir: Path) -> dict:
@@ -186,29 +174,14 @@ async def serve(workdir: Path, port: int) -> None:
         return await platform.watcher.tick()
 
     async def model_check():
-        incident = f"MLOPS-machine-failure-{int(time.time())}"
-        await platform.orchestrator.start_model_check(
-            check_id=incident,
-            service={"service_id": "machine-failure", "namespace": "ml", "version": "v1"},
-            environment="production",
-        )
-        return [incident]
+        request = model_check_request()
+        await platform.orchestrator.start_model_check(**request)
+        return [request["check_id"]]
 
     async def release(fixed: bool) -> list[str]:
-        """payment-service v2.8 through Agent 3's gate: blocked by a failing test, or allowed."""
-        stamp = int(time.time())
-        release_id = f"REL-payment-v2.8-{'fixed' if fixed else 'failing-test'}-{stamp}"
-        commit = "c0ffee2" if fixed else "c0ffee1"
-        current = platform.cluster.deployment(PAYMENT.service_id, PAYMENT.namespace).version
-        await platform.orchestrator.start_release(
-            release_id=release_id,
-            service={"service_id": PAYMENT.service_id, "namespace": PAYMENT.namespace, "version": current},
-            environment="production",
-            version="v2.8",
-            commit=commit,
-            assessment=release_assessment(fixed, f"REL-DEMO-{stamp}", commit),
-        )
-        return [release_id]
+        request = release_v28_request(platform.cluster, fixed)
+        await platform.orchestrator.start_release(**request)
+        return [request["release_id"]]
 
     async def release_failing_test():
         return await release(False)

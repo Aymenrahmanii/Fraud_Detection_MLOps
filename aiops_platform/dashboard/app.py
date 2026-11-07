@@ -226,7 +226,8 @@ def create_app(
     async def release(body: ReleaseRequest, op: Operator = Depends(operator)) -> dict[str, Any]:
         if not op.roles & {"release-manager", "admin"}:
             raise HTTPException(403, "release-manager role required")
-        release_id = f"REL-{body.service_id}-{body.version}"
+        # A release is a version built from a commit: rebuilding v2.8 after a fix is a new workflow.
+        release_id = f"REL-{body.service_id}-{body.version}-{body.commit[:12]}"
         return await orchestrator.start_release(
             release_id=release_id,
             service={"service_id": body.service_id, "namespace": body.namespace, "version": body.current_version},
