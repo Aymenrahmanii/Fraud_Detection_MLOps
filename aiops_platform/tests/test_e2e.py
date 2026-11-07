@@ -48,7 +48,9 @@ async def test_memory_leak_rollback_with_human_approval(prod):
     plan = approval["request_json"]["plan"]
     assert plan["status"] == "PREPARED" and plan["patch"]
 
-    await prod.orchestrator.resolve_approval(approval["approval_id"], decision="APPROVE", operator=SRE, comment="Verify 10m")
+    await prod.orchestrator.resolve_approval(
+        approval["approval_id"], decision="APPROVE", operator=SRE, comment="Verify 10m"
+    )
     await prod.bus.drain(timeout=60)
 
     status = await prod.orchestrator.status(incident)
@@ -70,7 +72,9 @@ async def test_rejection_replans_and_never_executes(prod):
     memory_leak_after_deploy(prod.cluster)
     [incident] = await detect(prod)
     [approval] = await prod.pending_approvals()
-    await prod.orchestrator.resolve_approval(approval["approval_id"], decision="REJECT", operator=SRE, comment="collect heap evidence first")
+    await prod.orchestrator.resolve_approval(
+        approval["approval_id"], decision="REJECT", operator=SRE, comment="collect heap evidence first"
+    )
     await prod.bus.drain(timeout=60)
     assert prod.cluster.deployment("payment-service", "prod").version == "v2.7"
     status = await prod.orchestrator.status(incident)
@@ -86,7 +90,10 @@ async def test_unauthorized_operator_cannot_approve(prod):
     [approval] = await prod.pending_approvals()
     with pytest.raises(Exception, match="needs one of"):
         await prod.orchestrator.resolve_approval(
-            approval["approval_id"], decision="APPROVE", operator=Operator(subject="eve@ml", roles=frozenset({"ml-lead"})), comment="lgtm"
+            approval["approval_id"],
+            decision="APPROVE",
+            operator=Operator(subject="eve@ml", roles=frozenset({"ml-lead"})),
+            comment="lgtm",
         )
     assert prod.cluster.mutations == []
 
@@ -108,13 +115,22 @@ async def test_bounded_scale_in_staging_runs_autonomously(tmp_path):
 
 async def test_release_gate_block_stops_deployment(prod):
     assessment = {
-        "assessment_id": "REL-1", "commit": "a823b91", "artifact": {"image": "registry.local/payment-service:v2.8"},
+        "assessment_id": "REL-1",
+        "commit": "a823b91",
+        "artifact": {"image": "registry.local/payment-service:v2.8"},
         "tests": {"total": 10, "passed": 9, "failed": 1, "skipped": 0, "coverage_pct": 80.0},
-        "quality": {"gate": "PASSED"}, "security": {}, "decision": "BLOCK", "blocking_reasons": ["1 failing test"],
+        "quality": {"gate": "PASSED"},
+        "security": {},
+        "decision": "BLOCK",
+        "blocking_reasons": ["1 failing test"],
     }
     status = await prod.orchestrator.start_release(
-        release_id="REL-payment-v2.8", service={"service_id": "payment-service", "namespace": "prod", "version": "v2.6"},
-        environment="production", version="v2.8", commit="a823b91", assessment=assessment,
+        release_id="REL-payment-v2.8",
+        service={"service_id": "payment-service", "namespace": "prod", "version": "v2.6"},
+        environment="production",
+        version="v2.8",
+        commit="a823b91",
+        assessment=assessment,
     )
     await prod.bus.drain(timeout=60)
     status = await prod.orchestrator.status("REL-payment-v2.8")
@@ -124,19 +140,30 @@ async def test_release_gate_block_stops_deployment(prod):
 
 async def test_release_allowed_deploys_after_approval(prod):
     assessment = {
-        "assessment_id": "REL-2", "commit": "b1", "artifact": {"image": "registry.local/payment-service:v2.8"},
+        "assessment_id": "REL-2",
+        "commit": "b1",
+        "artifact": {"image": "registry.local/payment-service:v2.8"},
         "tests": {"total": 10, "passed": 10, "failed": 0, "skipped": 0, "coverage_pct": 90.0},
-        "quality": {"gate": "PASSED"}, "security": {}, "decision": "ALLOW",
+        "quality": {"gate": "PASSED"},
+        "security": {},
+        "decision": "ALLOW",
     }
     await prod.orchestrator.start_release(
-        release_id="REL-payment-v2.8b", service={"service_id": "payment-service", "namespace": "prod", "version": "v2.6"},
-        environment="production", version="v2.8", commit="b1", assessment=assessment,
+        release_id="REL-payment-v2.8b",
+        service={"service_id": "payment-service", "namespace": "prod", "version": "v2.6"},
+        environment="production",
+        version="v2.8",
+        commit="b1",
+        assessment=assessment,
     )
     await prod.bus.drain(timeout=60)
     [approval] = await prod.pending_approvals()
     assert approval["request_json"]["action"] == "DEPLOY"
     await prod.orchestrator.resolve_approval(
-        approval["approval_id"], decision="APPROVE", operator=Operator(subject="rm@rel", roles=frozenset({"release-manager"})), comment="ship"
+        approval["approval_id"],
+        decision="APPROVE",
+        operator=Operator(subject="rm@rel", roles=frozenset({"release-manager"})),
+        comment="ship",
     )
     await prod.bus.drain(timeout=60)
     status = await prod.orchestrator.status("REL-payment-v2.8b")
@@ -146,7 +173,9 @@ async def test_release_allowed_deploys_after_approval(prod):
 
 async def test_model_drift_retrain_and_promotion_review(prod):
     await prod.orchestrator.start_model_check(
-        check_id="MLOPS-machine-failure-1", service={"service_id": "machine-failure", "namespace": "ml", "version": "v1"}, environment="production",
+        check_id="MLOPS-machine-failure-1",
+        service={"service_id": "machine-failure", "namespace": "ml", "version": "v1"},
+        environment="production",
     )
     await prod.bus.drain(timeout=180)
     status = await prod.orchestrator.status("MLOPS-machine-failure-1")
@@ -157,7 +186,10 @@ async def test_model_drift_retrain_and_promotion_review(prod):
     if lifecycle["decision"] == "REQUEST_PROMOTION_REVIEW":
         [approval] = await prod.pending_approvals()
         await prod.orchestrator.resolve_approval(
-            approval["approval_id"], decision="APPROVE", operator=Operator(subject="ml@lead", roles=frozenset({"ml-lead"})), comment="promote"
+            approval["approval_id"],
+            decision="APPROVE",
+            operator=Operator(subject="ml@lead", roles=frozenset({"ml-lead"})),
+            comment="promote",
         )
         await prod.bus.drain(timeout=60)
         status = await prod.orchestrator.status("MLOPS-machine-failure-1")

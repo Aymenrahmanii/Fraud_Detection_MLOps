@@ -67,7 +67,10 @@ class DeploymentWorker(AgentWorker):
     def subscribe(self) -> None:
         super().subscribe()
         consumer = ReliableConsumer(
-            self.bus, "worker.deployment-recovery-agent.actions", self._on_action, idempotency=InMemoryIdempotencyStore()
+            self.bus,
+            "worker.deployment-recovery-agent.actions",
+            self._on_action,
+            idempotency=InMemoryIdempotencyStore(),
         )
         consumer.subscribe(["workflow.continuation", "deployment.action.requested"])
 
@@ -121,11 +124,21 @@ class DeploymentWorker(AgentWorker):
             return
         plan = self._plans.get(intent.action_id, intent.action_version)
         if plan is None:
-            await self._complete(envelope, intent.action_id, intent.action_version, "BLOCKED", {}, {}, "no prepared plan")
+            await self._complete(
+                envelope, intent.action_id, intent.action_version, "BLOCKED", {}, {}, "no prepared plan"
+            )
             return
         claims = decode_token(request.approval_token).claims
         if (claims.plan_hash, claims.patch_hash) != (plan.plan_hash, plan.patch_hash):
-            await self._complete(envelope, intent.action_id, intent.action_version, "BLOCKED", {}, {}, "permit does not match the prepared plan")
+            await self._complete(
+                envelope,
+                intent.action_id,
+                intent.action_version,
+                "BLOCKED",
+                {},
+                {},
+                "permit does not match the prepared plan",
+            )
             return
         receipt = {
             "approval_id": claims.approval.receipt_id,
@@ -152,12 +165,28 @@ class DeploymentWorker(AgentWorker):
             observed_at=datetime.now(UTC),
         )
         await self._complete(
-            envelope, intent.action_id, intent.action_version, outcome.status,
-            outcome.pre_state, outcome.post_state, outcome.reason, (evidence.evidence_id,), outcome.execution_id,
+            envelope,
+            intent.action_id,
+            intent.action_version,
+            outcome.status,
+            outcome.pre_state,
+            outcome.post_state,
+            outcome.reason,
+            (evidence.evidence_id,),
+            outcome.execution_id,
         )
 
     async def _complete(
-        self, envelope, action_id, version, status, pre, post, reason, evidence=(), execution_id=None,
+        self,
+        envelope,
+        action_id,
+        version,
+        status,
+        pre,
+        post,
+        reason,
+        evidence=(),
+        execution_id=None,
     ) -> None:
         payload = ActionCompleted(
             action_id=action_id,
@@ -181,6 +210,12 @@ class DeploymentWorker(AgentWorker):
         await self.context.append_agent_result(result, "ACTION_COMPLETED")
         await publish(
             self.bus,
-            reply(envelope, source=self.agent_id.value, topic="deployment.action.completed",
-                  payload=payload, evidence_refs=tuple(evidence), key_suffix=json.dumps([action_id, version])),
+            reply(
+                envelope,
+                source=self.agent_id.value,
+                topic="deployment.action.completed",
+                payload=payload,
+                evidence_refs=tuple(evidence),
+                key_suffix=json.dumps([action_id, version]),
+            ),
         )

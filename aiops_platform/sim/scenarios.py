@@ -11,19 +11,24 @@ def base_cluster() -> SimulatedCluster:
     cluster = SimulatedCluster()
     repo = "registry.local/payment-service"
     cluster.add_service(
-        "payment-service", "prod",
+        "payment-service",
+        "prod",
         [
             Release("v2.6", digest_image(repo, "v2.6")),
             Release("v2.7", digest_image(repo, "v2.7"), frozenset({"memory_leak"})),
             Release("v2.8", digest_image(repo, "v2.8")),
         ],
-        current="v2.6", replicas=4,
+        current="v2.6",
+        replicas=4,
     )
     repo = "registry.local/checkout-api"
     cluster.add_service(
-        "checkout-api", "prod",
+        "checkout-api",
+        "prod",
         [Release("v1.3", digest_image(repo, "v1.3")), Release("v1.4", digest_image(repo, "v1.4"))],
-        current="v1.4", replicas=3, rps=250,
+        current="v1.4",
+        replicas=3,
+        rps=250,
     )
     return cluster
 

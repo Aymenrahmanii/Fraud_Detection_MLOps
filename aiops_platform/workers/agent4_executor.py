@@ -52,7 +52,6 @@ from agent4_deployment_recovery.core.preflight import run_preflight
 from agent4_deployment_recovery.core.recovery import build_forward_artifact
 from agent4_deployment_recovery.core.rollout import RolloutObserver
 from agent4_deployment_recovery.core.schemas import (
-    ApprovalReceipt,
     AuthorizedOperation,
     DeployImageDigest,
     KubernetesTarget,
@@ -123,9 +122,7 @@ class ClusterTargetResolver:
             limit = parameters.get("memory_limit_to_mib", parameters.get("memory_limit_mib"))
             if not isinstance(limit, int):
                 raise UnresolvableAction("memory intent has no exact limit")
-            return SetContainerResources(
-                operation_type=OperationType.SET_CONTAINER_RESOURCES, memory_limit_mib=limit
-            )
+            return SetContainerResources(operation_type=OperationType.SET_CONTAINER_RESOURCES, memory_limit_mib=limit)
         raise UnresolvableAction(f"Agent 4 cannot execute {action}")
 
     def current_state(self, target: KubernetesTarget) -> dict[str, JsonValue]:
@@ -198,7 +195,9 @@ class HitlTokenVerifier:
 class Agent1VerdictProvider:
     """Agent 4 `RecoveryVerdictProvider`; `verify` asks Agent 1 for a signed verdict."""
 
-    def __init__(self, verify: Callable[[RecoveryVerificationRequestV1, dict[str, str]], SignedRecoveryVerificationEnvelopeV1]):
+    def __init__(
+        self, verify: Callable[[RecoveryVerificationRequestV1, dict[str, str]], SignedRecoveryVerificationEnvelopeV1]
+    ):
         self._verify = verify
         self.service: dict[str, str] = {}
 
@@ -340,8 +339,13 @@ class Agent4Executor:
         before = self._resolver.current_state(operation.target)
         if plan.plan_hash != prepared.plan_hash:
             return ExecutionOutcome(
-                "BLOCKED", "REJECTED", "plan changed since approval; re-approval required",
-                execution_id, before, before, True,
+                "BLOCKED",
+                "REJECTED",
+                "plan changed since approval; re-approval required",
+                execution_id,
+                before,
+                before,
+                True,
             )
         production = operation.environment == PRODUCTION
         coordinator = self._coordinator(production=production)
@@ -356,7 +360,12 @@ class Agent4Executor:
         after = self._resolver.current_state(operation.target)
         status = {"SUCCEEDED": "SUCCESS", "REJECTED": "BLOCKED"}.get(result.state, "FAILED")
         return ExecutionOutcome(
-            status, result.state, result.reason, result.execution_id, before, after,
+            status,
+            result.state,
+            result.reason,
+            result.execution_id,
+            before,
+            after,
             result.operator_intervention_required,
         )
 

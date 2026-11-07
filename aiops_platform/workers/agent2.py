@@ -48,7 +48,15 @@ def sim_kubectl_runner(cluster):
                                 "creationTimestamp": at(minute),
                                 "annotations": {"deployment.kubernetes.io/revision": str(revision)},
                             },
-                            "spec": {"template": {"spec": {"containers": [{"image": dep.releases[version].image.split('@')[0] + ':' + version}]}}},
+                            "spec": {
+                                "template": {
+                                    "spec": {
+                                        "containers": [
+                                            {"image": dep.releases[version].image.split("@")[0] + ":" + version}
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     )
         elif resource == "pods":
@@ -57,9 +65,11 @@ def sim_kubectl_runner(cluster):
                     status = {"restartCount": dep.restarts, "state": {"running": {}}}
                     if dep.restarts:
                         status["lastState"] = {"terminated": {"reason": "OOMKilled", "exitCode": 137}}
-                    items.append({"metadata": {"name": f"{dep.service_id}-{index}"}, "status": {"containerStatuses": [status]}})
+                    items.append(
+                        {"metadata": {"name": f"{dep.service_id}-{index}"}, "status": {"containerStatuses": [status]}}
+                    )
         elif resource == "events":
-            for dep in cluster._deployments.values():  # noqa: SLF001 - simulation helper
+            for dep in cluster.deployments():
                 if dep.namespace == namespace and dep.restarts:
                     items.append(
                         {

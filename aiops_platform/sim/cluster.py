@@ -142,6 +142,10 @@ class SimulatedCluster:
         with self._lock:
             return self._get(namespace, service_id)
 
+    def deployments(self) -> list[SimDeployment]:
+        with self._lock:
+            return list(self._deployments.values())
+
     def previous_release(self, service_id: str, namespace: str) -> Release | None:
         """The last version before the current one with no known fault (rollback target)."""
         with self._lock:
@@ -161,7 +165,7 @@ class SimulatedCluster:
                         workload=d.service_id,
                         container=d.container,
                     )
-                    for d in self._deployments.values()
+                    for d in self.deployments()
                 )
             )
 
@@ -181,7 +185,7 @@ class SimulatedCluster:
             dep = (
                 self._get(namespace, service_id)
                 if namespace
-                else next(d for d in self._deployments.values() if d.service_id == service_id)
+                else next(d for d in self.deployments() if d.service_id == service_id)
             )
             cpu = min(99.0, 60.0 * dep.rps / (dep.replicas * CAPACITY_RPS_PER_REPLICA))
             memory = self._memory_pct(dep)
@@ -303,7 +307,15 @@ class SimulatedCluster:
                 dep.history.append((self.minute, dep.version))
                 dep.restarts = 0
             self._bump(dep)
-            self.mutations.append({"service": name, "namespace": namespace, "minute": self.minute, "image": dep.image, "replicas": dep.replicas})
+            self.mutations.append(
+                {
+                    "service": name,
+                    "namespace": namespace,
+                    "minute": self.minute,
+                    "image": dep.image,
+                    "replicas": dep.replicas,
+                }
+            )
             return dep.generation
 
     # ---- internals -------------------------------------------------------
@@ -323,7 +335,10 @@ class SimulatedCluster:
         snap = self.snapshot(dep.namespace, dep.service_id)
         return {
             "metadata": {"uid": snap.uid, "resourceVersion": snap.resource_version},
-            "spec": {"replicas": snap.replicas, "template": {"spec": {"containers": [deepcopy(snap.containers[0].raw)]}}},
+            "spec": {
+                "replicas": snap.replicas,
+                "template": {"spec": {"containers": [deepcopy(snap.containers[0].raw)]}},
+            },
         }
 
 

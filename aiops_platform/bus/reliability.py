@@ -94,9 +94,7 @@ class ReliableConsumer:
 
     def subscribe(self, topics: Sequence[str]) -> None:
         self._bus.subscribe(list(topics), self._group, self._on_record)
-        self._bus.subscribe(
-            [retry_topic(t, self._group) for t in topics], self._group, self._on_retry
-        )
+        self._bus.subscribe([retry_topic(t, self._group) for t in topics], self._group, self._on_retry)
 
     async def _on_record(self, record: Record) -> None:
         await self._process(record, attempt=1, original_topic=record.topic)
@@ -141,9 +139,7 @@ class ReliableConsumer:
         await self._idempotency.mark(key)
         self._observer.processed(self._group, original_topic, time.perf_counter() - started)
 
-    async def _schedule_retry(
-        self, record: Record, original_topic: str, attempt: int, exc: BaseException
-    ) -> None:
+    async def _schedule_retry(self, record: Record, original_topic: str, attempt: int, exc: BaseException) -> None:
         headers = dict(record.headers)
         headers.setdefault(H_FIRST_FAILED, _now_iso())
         headers.update(

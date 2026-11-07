@@ -66,7 +66,9 @@ async def test_each_group_receives_each_event_once(no_sleep):
         return handle
 
     for group in seen:
-        c = ReliableConsumer(bus, group, await handler_for(group), idempotency=InMemoryIdempotencyStore(), sleep=no_sleep)
+        c = ReliableConsumer(
+            bus, group, await handler_for(group), idempotency=InMemoryIdempotencyStore(), sleep=no_sleep
+        )
         c.subscribe([TOPIC])
     await bus.start()
     await publish(bus, anomaly("MSG-1"))

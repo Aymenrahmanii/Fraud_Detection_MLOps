@@ -8,6 +8,7 @@
 """
 
 import asyncio
+import contextlib
 import logging
 from collections import defaultdict
 from collections.abc import Sequence
@@ -30,16 +31,20 @@ class KafkaBus:
         self._client_id = client_id
         self._partitions = partitions
         self._replication = replication_factor
-        self._groups: dict[str, dict[str, RecordHandler]] = defaultdict(dict)
+        # One consumer per subscription: a retry topic waiting out its backoff
+        # must not block the same group's main topic.
+        self._subscriptions: list[tuple[str, dict[str, RecordHandler]]] = []
+        self._seen: dict[str, set[str]] = defaultdict(set)
         self._producer = None
         self._consumers: list = []
         self._tasks: list[asyncio.Task[None]] = []
 
     def subscribe(self, topics: Sequence[str], group: str, handler: RecordHandler) -> None:
         for topic in topics:
-            if topic in self._groups[group]:
+            if topic in self._seen[group]:
                 raise ValueError(f"group {group} already consumes {topic}")
-            self._groups[group][topic] = handler
+            self._seen[group].add(topic)
+        self._subscriptions.append((group, {topic: handler for topic in topics}))
 
     async def publish_record(self, record: Record) -> None:
         if self._producer is None:
@@ -54,7 +59,7 @@ class KafkaBus:
     async def start(self) -> None:
         from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
-        await self.ensure_topics({t for handlers in self._groups.values() for t in handlers})
+        await self.ensure_topics({t for _, handlers in self._subscriptions for t in handlers})
         self._producer = AIOKafkaProducer(
             bootstrap_servers=self._bootstrap,
             client_id=self._client_id,
@@ -62,14 +67,16 @@ class KafkaBus:
             enable_idempotence=True,
         )
         await self._producer.start()
-        for group, handlers in self._groups.items():
+        for index, (group, handlers) in enumerate(self._subscriptions):
             consumer = AIOKafkaConsumer(
                 *handlers,
                 bootstrap_servers=self._bootstrap,
                 group_id=group,
-                client_id=f"{self._client_id}-{group}",
+                client_id=f"{self._client_id}-{group}-{index}",
                 enable_auto_commit=False,
                 auto_offset_reset="earliest",
+                # Agent 4 waits for a recovery verdict inside one handler.
+                max_poll_interval_ms=900_000,
             )
             await consumer.start()
             self._consumers.append(consumer)
@@ -99,12 +106,9 @@ class KafkaBus:
             existing = set(await admin.list_topics())
             missing = sorted(topics - existing)
             if missing:
-                try:
-                    await admin.create_topics(
-                        [NewTopic(t, self._partitions, self._replication) for t in missing]
-                    )
-                except TopicAlreadyExistsError:
-                    pass
+                # Another service may create the same topic concurrently.
+                with contextlib.suppress(TopicAlreadyExistsError):
+                    await admin.create_topics([NewTopic(t, self._partitions, self._replication) for t in missing])
         finally:
             await admin.close()
 

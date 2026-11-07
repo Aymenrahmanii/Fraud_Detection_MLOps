@@ -114,9 +114,7 @@ class PolicyGate:
         return round(score, 4)
 
     def risk(self, x: PolicyInput, decision_score: float) -> RiskAssessment:
-        profile = self._p["actions"].get(
-            x.action, {"blast_radius": 1.0, "reversible": False, "data_impact": 1.0}
-        )
+        profile = self._p["actions"].get(x.action, {"blast_radius": 1.0, "reversible": False, "data_impact": 1.0})
         w = self._p["risk_weights"]
         factors = {
             "environment_criticality": _clip(self._p["environment_criticality"].get(x.environment, 1.0)),
@@ -169,9 +167,7 @@ class PolicyGate:
             block.append("mandatory evidence is missing")
         bound_violation = self._out_of_bounds(x)
 
-        pre_authorized = {"environment": x.environment, "action": x.action} in self._p.get(
-            "pre_authorized", []
-        )
+        pre_authorized = {"environment": x.environment, "action": x.action} in self._p.get("pre_authorized", [])
         if x.environment == "production" and not pre_authorized:
             triggers.append("production side effect without pre-authorization")
         if not risk.reversible:
@@ -181,9 +177,7 @@ class PolicyGate:
         if x.security_exception or x.release_gate == "ALLOW_WITH_WARNING":
             triggers.append("security gate warning or exception")
         if x.rca_confidence < thresholds["min_confidence"]:
-            triggers.append(
-                f"decision confidence {x.rca_confidence:.2f} below {thresholds['min_confidence']:.2f}"
-            )
+            triggers.append(f"decision confidence {x.rca_confidence:.2f} below {thresholds['min_confidence']:.2f}")
         if x.agent_agreement < 1 - thresholds["max_disagreement"]:
             triggers.append(f"high specialist disagreement (agreement {x.agent_agreement:.2f})")
         if bound_violation:

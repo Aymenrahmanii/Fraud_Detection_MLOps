@@ -26,6 +26,24 @@ The **Fraud Detection MLOps Pipeline** is an end-to-end system designed to ident
 
 ---
 
+## Six-agent autonomous DevOps / MLOps system
+
+On top of the fraud-detection service, six specialized agents
+(`agent1_monitoring` … `agent6_mlops_lifecycle`) and a shared platform
+(`aiops_platform`: LangGraph Orchestrator, Kafka backbone, Context Service,
+policy gate, human-in-the-loop approvals, operator Dashboard) form the closed
+loop of `Six_Agent_DevOps_MLOps_Technical_Architecture_v5`: detect → diagnose →
+decide → approve → execute → verify → audit.
+
+```bash
+python -m aiops_platform.demo --auto                    # every scenario, no Docker
+docker compose -f compose.platform.yaml up --build -d   # distributed stack, Dashboard on :8090
+```
+
+See [aiops_platform/README.md](aiops_platform/README.md).
+
+---
+
 ## **Table of Contents**
 
 1. [Project Overview](#1-project-overview)

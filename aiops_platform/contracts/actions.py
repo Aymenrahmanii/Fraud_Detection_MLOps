@@ -28,9 +28,7 @@ class ActionIntent(Contract):
 
     def fingerprint(self) -> str:
         """Bind approval to the entire current intent, including its version and scope."""
-        canonical = json.dumps(
-            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), allow_nan=False
-        )
+        canonical = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), allow_nan=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 

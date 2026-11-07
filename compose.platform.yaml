@@ -1,0 +1,169 @@
+# The six-agent platform, distributed: one container per platform service and
+# per agent, Kafka (Redpanda) for events, gRPC for synchronous calls,
+# PostgreSQL for the Context Service and LangGraph checkpoints, Redis for
+# idempotency keys. The target infrastructure is the simulated cluster.
+#
+#   docker compose -f compose.platform.yaml up --build -d
+#   open http://127.0.0.1:8090   (token: dev-sre-token)
+#
+# AIOPS_SERVICE_SECRET signs the development service tokens; set your own
+# (e.g. in a .env file next to this one) and never reuse the default outside a laptop.
+name: aiops-platform
+
+x-platform: &platform
+  image: aiops-platform:local
+  build: {context: ., dockerfile: docker/platform.Dockerfile}
+  restart: unless-stopped
+  environment: &env
+    AIOPS_SERVICE_SECRET: ${AIOPS_SERVICE_SECRET:-dev-only-change-me}
+    KAFKA_BOOTSTRAP: redpanda:9092
+    REDIS_URL: redis://redis:6379/0
+    CONTEXT_TARGET: context:50051
+    HITL_TARGET: hitl:50052
+    MONITORING_TARGET: agent-monitoring:50053
+    SIM_CLUSTER_URL: http://sim-cluster:8070
+    LOG_LEVEL: INFO
+  depends_on: &deps
+    redpanda: {condition: service_healthy}
+    redis: {condition: service_started}
+
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:9092
+      # DLQ topics are only produced to, so they are created on first use.
+      - --set redpanda.auto_create_topics_enabled=true
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 768m
+
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: aiops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aiops-dev}
+      POSTGRES_DB: context
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiops -d context"]
+      interval: 3s
+      retries: 30
+    mem_limit: 512m
+
+  redis:
+    image: redis:7.4-alpine
+    mem_limit: 128m
+
+  sim-cluster:
+    <<: *platform
+    command: ["sim-cluster"]
+    depends_on: {}
+    environment: {SIM_SECONDS_PER_MINUTE: "10", HTTP_PORT: "8070"}
+    ports: ["127.0.0.1:8070:8070"]
+
+  context:
+    <<: *platform
+    command: ["context"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      AIOPS_SERVICE_SECRET: ${AIOPS_SERVICE_SECRET:-dev-only-change-me}
+      CONTEXT_DB_URL: postgresql+psycopg://aiops:${POSTGRES_PASSWORD:-aiops-dev}@postgres:5432/context
+      CONTEXT_OBJECTS_DIR: /data/evidence
+    volumes: [context-data:/data]
+
+  hitl:
+    <<: *platform
+    command: ["hitl"]
+    depends_on: [context]
+    environment:
+      <<: *env
+      HITL_KEY_PATH: /secrets/hitl.pem
+    volumes: [hitl-secrets:/secrets, trust:/trust]
+
+  orchestrator:
+    <<: *platform
+    command: ["orchestrator"]
+    depends_on:
+      <<: *deps
+      context: {condition: service_started}
+      hitl: {condition: service_started}
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *env
+      CHECKPOINT_DB_URL: postgresql://aiops:${POSTGRES_PASSWORD:-aiops-dev}@postgres:5432/checkpoints
+      HTTP_PORT: "8080"
+    ports: ["127.0.0.1:8080:8080"]
+
+  dashboard:
+    <<: *platform
+    command: ["dashboard"]
+    depends_on: [orchestrator]
+    environment:
+      <<: *env
+      ORCHESTRATOR_URL: http://orchestrator:8080
+      HTTP_PORT: "8090"
+    ports: ["127.0.0.1:8090:8090"]
+
+  agent-monitoring:
+    <<: *platform
+    command: ["worker", "monitoring"]
+    depends_on: {<<: *deps, context: {condition: service_started}, sim-cluster: {condition: service_started}}
+    environment:
+      <<: *env
+      WATCH_SERVICES: prod/payment-service,prod/checkout-api
+      WATCH_ENVIRONMENT: production
+      WATCH_INTERVAL_SECONDS: "10"
+      VERIFY_WINDOW_SECONDS: "60"
+      VERIFY_SAMPLE_SECONDS: "15"
+    volumes: [agent1-secrets:/secrets, trust:/trust]
+
+  agent-diagnosis:
+    <<: *platform
+    command: ["worker", "diagnosis"]
+    depends_on: {<<: *deps, context: {condition: service_started}}
+
+  agent-security-quality:
+    <<: *platform
+    command: ["worker", "security-quality"]
+    depends_on: {<<: *deps, context: {condition: service_started}}
+
+  agent-deployment-recovery:
+    <<: *platform
+    command: ["worker", "deployment-recovery"]
+    depends_on: {<<: *deps, context: {condition: service_started}, hitl: {condition: service_started}, agent-monitoring: {condition: service_started}}
+    volumes: [agent4-data:/data, trust:/trust:ro]
+
+  agent-resource-optimization:
+    <<: *platform
+    command: ["worker", "resource-optimization"]
+    depends_on: {<<: *deps, context: {condition: service_started}}
+
+  agent-mlops-lifecycle:
+    <<: *platform
+    command: ["worker", "mlops-lifecycle"]
+    depends_on: {<<: *deps, context: {condition: service_started}}
+    volumes: [agent6-data:/data]
+
+volumes:
+  postgres-data:
+  context-data:
+  hitl-secrets:
+  agent1-secrets:
+  agent4-data:
+  agent6-data:
+  trust:

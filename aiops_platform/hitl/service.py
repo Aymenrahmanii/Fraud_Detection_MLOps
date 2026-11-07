@@ -138,9 +138,7 @@ def _evidence_hash(request: dict[str, Any], decision: str, approver: str, commen
 class HitlService:
     context: ContextService
     signer: SigningKey
-    approver_roles: Mapping[str, frozenset[str]] = field(
-        default_factory=lambda: dict(DEFAULT_APPROVER_ROLES)
-    )
+    approver_roles: Mapping[str, frozenset[str]] = field(default_factory=lambda: dict(DEFAULT_APPROVER_ROLES))
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
     _me: Principal = field(default_factory=Principal.hitl)
 
@@ -208,7 +206,11 @@ class HitlService:
                 row["token_hash"] = token_hash(token)
             row["request_json"] = {
                 **row["request_json"],
-                "_provenance": {"evidence_hash": evidence, "method": ApprovalMethod.HUMAN_INTERACTIVE.value, "approved_at": now.isoformat()},
+                "_provenance": {
+                    "evidence_hash": evidence,
+                    "method": ApprovalMethod.HUMAN_INTERACTIVE.value,
+                    "approved_at": now.isoformat(),
+                },
             }
         await self.context.upsert_approval(self._me, row)
         return self._state(row, token=token)
@@ -238,7 +240,11 @@ class HitlService:
             "token_hash": token_hash(token),
             "request_json": {
                 **request.model_dump(mode="json"),
-                "_provenance": {"evidence_hash": evidence, "method": ApprovalMethod.AUTOMATED_POLICY.value, "approved_at": now.isoformat()},
+                "_provenance": {
+                    "evidence_hash": evidence,
+                    "method": ApprovalMethod.AUTOMATED_POLICY.value,
+                    "approved_at": now.isoformat(),
+                },
             },
             "created_at": now,
             "expires_at": now + timedelta(seconds=request.ttl_seconds),

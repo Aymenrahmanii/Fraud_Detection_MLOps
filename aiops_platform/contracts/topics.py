@@ -7,8 +7,6 @@ holds the topics the shared platform adds; see ARCHITECTURE.md.
 from aiops_platform.contracts.actions import ActionRequest
 from aiops_platform.contracts.base import Contract
 from aiops_platform.contracts.enums import AgentId
-from aiops_platform.contracts.platform_payloads import PlanPrepared
-from aiops_platform.contracts.tasks import AgentResult, AgentTask
 from aiops_platform.contracts.payloads import (
     ActionCompleted,
     AnomalyDetected,
@@ -21,6 +19,8 @@ from aiops_platform.contracts.payloads import (
     ResourceRecommendation,
     WorkflowContinuation,
 )
+from aiops_platform.contracts.platform_payloads import PlanPrepared
+from aiops_platform.contracts.tasks import AgentResult, AgentTask
 
 TOPICS: dict[str, tuple[str, type[Contract]]] = {
     "monitoring.anomaly.detected": ("ANOMALY_DETECTED", AnomalyDetected),

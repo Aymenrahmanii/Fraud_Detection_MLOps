@@ -105,7 +105,14 @@ async def test_concurrent_writers_keep_one_unbroken_audit_chain(context, orchest
     await open_incident(context)
     now = datetime.now(UTC)
     writes = [
-        context.append_evidence(DIAG, incident_id="INC-TEST-0001", evidence_type="metric", summary=f"m{i}", content={"i": i}, observed_at=now)
+        context.append_evidence(
+            DIAG,
+            incident_id="INC-TEST-0001",
+            evidence_type="metric",
+            summary=f"m{i}",
+            content={"i": i},
+            observed_at=now,
+        )
         for i in range(15)
     ] + [
         context.record_decision(orchestrator, "INC-TEST-0001", stage="TEST", decision_type=f"D{i}", payload={"i": i})

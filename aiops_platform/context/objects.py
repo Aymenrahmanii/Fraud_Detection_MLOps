@@ -15,9 +15,7 @@ from pydantic import JsonValue
 
 
 def canonical_bytes(content: JsonValue) -> bytes:
-    return json.dumps(content, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(
-        "utf-8"
-    )
+    return json.dumps(content, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
 def sha256_hex(data: bytes) -> str:

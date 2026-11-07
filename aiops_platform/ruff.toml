@@ -1,0 +1,18 @@
+# Same selection as the agents (agent1/agent6 ruff.toml); Agent 3's release
+# gate additionally runs F821, F811, E9 and S over the whole repository.
+target-version = "py312"
+line-length = 120
+extend-exclude = ["rpc/gen"]
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# FastAPI's dependency injection is `Depends(...)` in argument defaults.
+# Line length is enforced by `ruff format`; long string literals are allowed.
+ignore = ["B008", "E501"]
+
+[lint.isort]
+known-first-party = ["aiops_platform", "agent1_monitoring", "agent2_diagnosis", "agent3_security_quality", "agent4_deployment_recovery", "agent5_resource_optimization", "agent6_mlops_lifecycle"]
+
+[lint.per-file-ignores]
+"tests/*.py" = ["S101", "E501"]
+"experiments/*.py" = ["S603", "S607", "S310"]

@@ -84,8 +84,15 @@ class Platform:
             MonitoringWorker(bus, AgentContext(context, AgentId.MONITORING), agent=agent, publisher=publisher),
             DiagnosisWorker(bus, AgentContext(context, AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster)),
             SecurityQualityWorker(bus, AgentContext(context, AgentId.SECURITY_QUALITY)),
-            DeploymentWorker(bus, AgentContext(context, AgentId.DEPLOYMENT_RECOVERY), executor=executor, plans=PlanStore(workdir / "plans")),
-            ResourceOptimizationWorker(bus, AgentContext(context, AgentId.RESOURCE_OPTIMIZATION), metrics=cluster_metrics(cluster)),
+            DeploymentWorker(
+                bus,
+                AgentContext(context, AgentId.DEPLOYMENT_RECOVERY),
+                executor=executor,
+                plans=PlanStore(workdir / "plans"),
+            ),
+            ResourceOptimizationWorker(
+                bus, AgentContext(context, AgentId.RESOURCE_OPTIMIZATION), metrics=cluster_metrics(cluster)
+            ),
             MLOpsWorker(bus, AgentContext(context, AgentId.MLOPS_LIFECYCLE), output_dir=workdir / "agent6"),
         ]
         orchestrator.subscribe()

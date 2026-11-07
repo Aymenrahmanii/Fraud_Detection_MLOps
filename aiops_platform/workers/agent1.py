@@ -117,7 +117,11 @@ class SimAnomalyDetector:
                     "statistical.slope_per_minute": s["memory_slope_mb_min"],
                 }
             elif category == "memory_oom":
-                facts = {"events.oom_kills": s["pod_restarts"], "events.restarts": s["pod_restarts"], "events.memory_peak_ratio": min(1.0, s["memory_pct"] / 100)}
+                facts = {
+                    "events.oom_kills": s["pod_restarts"],
+                    "events.restarts": s["pod_restarts"],
+                    "events.memory_peak_ratio": min(1.0, s["memory_pct"] / 100),
+                }
             incidents.append(
                 {
                     "incident_id": f"SIM-{context.service_id}-{category}",
@@ -212,7 +216,9 @@ class Agent1VerdictService:
             key_id=self._signer.key_id, claims=claims, signature=self._signer.sign(claims)
         )
 
-    def sync_provider(self) -> Callable[[RecoveryVerificationRequestV1, dict[str, str]], SignedRecoveryVerificationEnvelopeV1]:
+    def sync_provider(
+        self,
+    ) -> Callable[[RecoveryVerificationRequestV1, dict[str, str]], SignedRecoveryVerificationEnvelopeV1]:
         """Agent 4's coordinator is synchronous and runs in a thread: run the check there."""
 
         def call(request: RecoveryVerificationRequestV1, service: dict[str, str]):
@@ -249,7 +255,9 @@ class SimWatcher:
     already has an open alert. `resolve()` re-arms a service once its incident closes.
     """
 
-    def __init__(self, bus, cluster, detector: SimAnomalyDetector, services: list[ServiceIdentity], environment: Environment) -> None:
+    def __init__(
+        self, bus, cluster, detector: SimAnomalyDetector, services: list[ServiceIdentity], environment: Environment
+    ) -> None:
         self._bus = bus
         self._cluster = cluster
         self._detector = detector
@@ -264,13 +272,19 @@ class SimWatcher:
     async def tick(self) -> list[str]:
         opened = []
         for service in self._services:
-            if service.service_id in self._open:
-                continue
             anomaly = await self._detector.detect(
-                A1Context(service_id=service.service_id, namespace=service.namespace, environment=A1Environment(self._environment.value))
+                A1Context(
+                    service_id=service.service_id,
+                    namespace=service.namespace,
+                    environment=A1Environment(self._environment.value),
+                )
             )
             if anomaly is None:
+                # Healthy again (e.g. after a verified rollback): re-arm the service.
+                self._open.pop(service.service_id, None)
                 continue
+            if service.service_id in self._open:
+                continue  # the same alert is still open
             self._counter += 1
             incident_id = f"INC-{datetime.now(UTC):%Y%m%d}-{service.service_id}-{self._counter:04d}"
             dep = self._cluster.deployment(service.service_id, service.namespace)
@@ -286,7 +300,9 @@ class SimWatcher:
                 priority={Severity.CRITICAL: Priority.P0, Severity.HIGH: Priority.P1}.get(severity, Priority.P2),
                 severity=severity,
                 environment=self._environment,
-                service=ServiceIdentity(service_id=service.service_id, namespace=service.namespace, version=dep.version),
+                service=ServiceIdentity(
+                    service_id=service.service_id, namespace=service.namespace, version=dep.version
+                ),
                 confidence=anomaly.anomaly_score,
                 idempotency_key=f"monitoring-agent:anomaly:{incident_id}",
                 payload=A1Anomaly(

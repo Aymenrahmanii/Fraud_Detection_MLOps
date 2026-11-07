@@ -114,10 +114,15 @@ async def test_human_approved_production_rollback_executes_and_recovers(setup, c
     await hitl.create_approval(orchestrator, request_for(plan))
     with pytest.raises(ApproverNotAuthorized):
         await hitl.resolve_approval(
-            orchestrator, "APR-TEST-001", decision="APPROVE",
-            operator=Operator(subject="bob@ml", roles=frozenset({"ml-lead"})), comment="ok",
+            orchestrator,
+            "APR-TEST-001",
+            decision="APPROVE",
+            operator=Operator(subject="bob@ml", roles=frozenset({"ml-lead"})),
+            comment="ok",
         )
-    state = await hitl.resolve_approval(orchestrator, "APR-TEST-001", decision="APPROVE", operator=SRE, comment="Verify 10m")
+    state = await hitl.resolve_approval(
+        orchestrator, "APR-TEST-001", decision="APPROVE", operator=SRE, comment="Verify 10m"
+    )
     assert state.state == "APPROVED" and state.approval_token
 
     outcome = await in_thread(executor.execute, plan, receipt=state.receipt, approval_token=state.approval_token)
@@ -160,7 +165,9 @@ async def test_rejected_approval_signs_nothing(setup, context):
     plan = await prepare(executor)
     orchestrator = Principal.orchestrator()
     await hitl.create_approval(orchestrator, request_for(plan))
-    state = await hitl.resolve_approval(orchestrator, "APR-TEST-001", decision="REJECT", operator=SRE, comment="need heap")
+    state = await hitl.resolve_approval(
+        orchestrator, "APR-TEST-001", decision="REJECT", operator=SRE, comment="need heap"
+    )
     assert state.state == "REJECTED" and state.approval_token is None
 
 
@@ -168,8 +175,14 @@ async def test_unresolvable_intent_is_rejected_before_approval(setup, context):
     _, _, executor = setup
     plan = await in_thread(
         executor.prepare,
-        incident_id="INC-TEST-0001", trace_id="TRACE-1", environment="production",
-        service_id="payment-service", namespace="prod", action_id="ACT-002", action_version=1,
-        action="ROLLBACK", parameters={"to_version": "v9.9"},
+        incident_id="INC-TEST-0001",
+        trace_id="TRACE-1",
+        environment="production",
+        service_id="payment-service",
+        namespace="prod",
+        action_id="ACT-002",
+        action_version=1,
+        action="ROLLBACK",
+        parameters={"to_version": "v9.9"},
     )
     assert plan.status == "REJECTED" and "unknown release" in plan.reason

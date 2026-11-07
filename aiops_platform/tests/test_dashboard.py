@@ -51,11 +51,19 @@ async def test_operator_approves_from_the_dashboard(setup):
     assert any(op["op"] == "replace" for op in approval["request"]["plan"]["patch"])
 
     # A viewer has no approval role: the HITL Service refuses, nothing executes.
-    denied = await client.post(f"/api/approvals/{approval['approval_id']}/resolve", headers=auth("viewer-token"), json={"decision": "APPROVE", "comment": "looks fine"})
+    denied = await client.post(
+        f"/api/approvals/{approval['approval_id']}/resolve",
+        headers=auth("viewer-token"),
+        json={"decision": "APPROVE", "comment": "looks fine"},
+    )
     assert denied.status_code == 403
     assert platform.cluster.mutations == []
 
-    ok = await client.post(f"/api/approvals/{approval['approval_id']}/resolve", headers=auth("sre-token"), json={"decision": "APPROVE", "comment": "rollback, verify 10m"})
+    ok = await client.post(
+        f"/api/approvals/{approval['approval_id']}/resolve",
+        headers=auth("sre-token"),
+        json={"decision": "APPROVE", "comment": "rollback, verify 10m"},
+    )
     assert ok.status_code == 200 and ok.json()["state"] == "APPROVED"
     assert "approval_token" not in ok.json()
     await platform.bus.drain(timeout=60)
@@ -63,8 +71,14 @@ async def test_operator_approves_from_the_dashboard(setup):
     detail = (await client.get(f"/api/incidents/{incident}", headers=auth("sre-token"))).json()
     assert detail["workflow"]["stage"] == "RESOLVED"
     assert detail["audit_chain_valid"] is True
-    assert any(a["action"] == "APPROVAL_APPROVED" and a["detail"]["approver_id"] == "alice@sre" for a in detail["audit"])
+    assert any(
+        a["action"] == "APPROVAL_APPROVED" and a["detail"]["approver_id"] == "alice@sre" for a in detail["audit"]
+    )
 
-    again = await client.post(f"/api/approvals/{approval['approval_id']}/resolve", headers=auth("sre-token"), json={"decision": "APPROVE", "comment": "twice"})
+    again = await client.post(
+        f"/api/approvals/{approval['approval_id']}/resolve",
+        headers=auth("sre-token"),
+        json={"decision": "APPROVE", "comment": "twice"},
+    )
     assert again.status_code == 409  # already resolved
     assert len(platform.cluster.mutations) == 1

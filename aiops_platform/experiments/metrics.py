@@ -49,8 +49,12 @@ async def evaluate_workflows(platform) -> dict[str, Any]:
     for ctx in incidents:
         trail = await platform.context.audit_trail(ORCH, ctx.incident_id)
         opened = ctx.opened_at
-        decided = _first(trail, lambda r: r["action"] == "DECISION_RECORDED" and r["detail_json"].get("stage") == "POLICY")
-        resolved = _first(trail, lambda r: r["action"] == "INCIDENT_UPDATED" and r["detail_json"].get("status") == "RESOLVED")
+        decided = _first(
+            trail, lambda r: r["action"] == "DECISION_RECORDED" and r["detail_json"].get("stage") == "POLICY"
+        )
+        resolved = _first(
+            trail, lambda r: r["action"] == "INCIDENT_UPDATED" and r["detail_json"].get("status") == "RESOLVED"
+        )
         approval_wait = _seconds(
             _first(trail, lambda r: r["action"] == "APPROVAL_WAITING_FOR_HUMAN"),
             _first(trail, lambda r: r["action"] in ("APPROVAL_APPROVED", "APPROVAL_REJECTED", "APPROVAL_EXPIRED")),
@@ -58,7 +62,11 @@ async def evaluate_workflows(platform) -> dict[str, Any]:
         for row in trail:
             if row["action"] == "DECISION_RECORDED" and row["detail_json"].get("stage") == "POLICY":
                 policy[row["detail_json"]["type"]] += 1
-        executed = [a for a in ctx.candidate_actions if a.execution_status not in ("CANDIDATE", "PLAN_REJECTED", "REJECTED_BY_HUMAN")]
+        executed = [
+            a
+            for a in ctx.candidate_actions
+            if a.execution_status not in ("CANDIDATE", "PLAN_REJECTED", "REJECTED_BY_HUMAN")
+        ]
         human = any(r["action"] == "APPROVAL_WAITING_FOR_HUMAN" for r in trail)
         rows.append(
             {
@@ -86,7 +94,9 @@ async def evaluate_workflows(platform) -> dict[str, Any]:
         "mtta_s_avg": _avg([r["mtta_s"] for r in incident_rows]),
         "mttr_s_avg": _avg([r["mttr_s"] for r in resolved]),
         "hitl_rate": round(sum(r["hitl"] for r in rows) / len(rows), 3) if rows else None,
-        "autonomous_resolution_rate": round(sum(not r["hitl"] for r in resolved) / len(incident_rows), 3) if incident_rows else None,
+        "autonomous_resolution_rate": round(sum(not r["hitl"] for r in resolved) / len(incident_rows), 3)
+        if incident_rows
+        else None,
         "action_success_rate": round(verified / executed, 3) if executed else None,
         "false_action_rate": round((executed - verified) / executed, 3) if executed else None,
         "policy_distribution": dict(policy),

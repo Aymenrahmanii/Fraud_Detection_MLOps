@@ -28,7 +28,9 @@ DEFAULT_OPERATORS = Path(__file__).with_name("operators.example.yaml")
 
 
 class OrchestratorPort(Protocol):
-    async def resolve_approval(self, approval_id: str, *, decision: str, operator: Operator, comment: str) -> dict[str, Any]: ...
+    async def resolve_approval(
+        self, approval_id: str, *, decision: str, operator: Operator, comment: str
+    ) -> dict[str, Any]: ...
     async def status(self, incident_id: str) -> dict[str, Any]: ...
     async def start_release(self, **kwargs: Any) -> dict[str, Any]: ...
     async def start_model_check(self, **kwargs: Any) -> dict[str, Any]: ...
@@ -63,7 +65,9 @@ def _clean_approval(row: dict[str, Any]) -> dict[str, Any]:
     plan = request.get("plan") or {}
     if plan:
         # The approver sees the exact change; the opaque operation blob stays server-side.
-        request["plan"] = {k: plan.get(k) for k in ("status", "reason", "operation_id", "plan_hash", "patch_hash", "target", "patch")}
+        request["plan"] = {
+            k: plan.get(k) for k in ("status", "reason", "operation_id", "plan_hash", "patch_hash", "target", "patch")
+        }
     return {
         "approval_id": row["approval_id"],
         "incident_id": row["incident_id"],
@@ -112,8 +116,12 @@ def create_app(
         rows = await context.list_incidents(viewer)
         return [
             {
-                "incident_id": c.incident_id, "kind": c.kind, "status": c.status, "priority": c.priority,
-                "severity": c.severity, "environment": c.environment,
+                "incident_id": c.incident_id,
+                "kind": c.kind,
+                "status": c.status,
+                "priority": c.priority,
+                "severity": c.severity,
+                "environment": c.environment,
                 "service": c.service.model_dump() if c.service else None,
                 "opened_at": c.opened_at.isoformat() if c.opened_at else None,
                 "closed_at": c.closed_at.isoformat() if c.closed_at else None,
@@ -132,22 +140,47 @@ def create_app(
         trail = await context.audit_trail(viewer, incident_id)
         return {
             "context": ctx.model_dump(mode="json"),
-            "workflow": {k: workflow.get(k) for k in ("stage", "kind", "outcome", "selected", "policy", "consensus", "notes", "replans", "approval", "waiting", "done")},
+            "workflow": {
+                k: workflow.get(k)
+                for k in (
+                    "stage",
+                    "kind",
+                    "outcome",
+                    "selected",
+                    "policy",
+                    "consensus",
+                    "notes",
+                    "replans",
+                    "approval",
+                    "waiting",
+                    "done",
+                )
+            },
             "audit": [
-                {"seq": a["seq"], "at": a["created_at"].isoformat(), "actor": a["actor"], "action": a["action"], "detail": a["detail_json"]}
+                {
+                    "seq": a["seq"],
+                    "at": a["created_at"].isoformat(),
+                    "actor": a["actor"],
+                    "action": a["action"],
+                    "detail": a["detail_json"],
+                }
                 for a in trail
             ],
             "audit_chain_valid": await context.verify_audit_chain(viewer, incident_id),
         }
 
     @app.get("/api/approvals")
-    async def approvals(state: str | None = "WAITING_FOR_HUMAN", _: Operator = Depends(operator)) -> list[dict[str, Any]]:
+    async def approvals(
+        state: str | None = "WAITING_FOR_HUMAN", _: Operator = Depends(operator)
+    ) -> list[dict[str, Any]]:
         return [_clean_approval(r) for r in await context.list_approvals(viewer, state=state or None)]
 
     @app.post("/api/approvals/{approval_id}/resolve")
     async def resolve(approval_id: str, body: Resolution, op: Operator = Depends(operator)) -> dict[str, Any]:
         try:
-            return await orchestrator.resolve_approval(approval_id, decision=body.decision, operator=op, comment=body.comment)
+            return await orchestrator.resolve_approval(
+                approval_id, decision=body.decision, operator=op, comment=body.comment
+            )
         except HitlError as exc:
             raise HTTPException(409 if exc.code != "APPROVER_NOT_AUTHORIZED" else 403, f"{exc.code}: {exc}") from exc
 
@@ -159,7 +192,10 @@ def create_app(
         return await orchestrator.start_release(
             release_id=release_id,
             service={"service_id": body.service_id, "namespace": body.namespace, "version": body.current_version},
-            environment=body.environment, version=body.version, commit=body.commit, assessment=body.assessment,
+            environment=body.environment,
+            version=body.version,
+            commit=body.commit,
+            assessment=body.assessment,
         )
 
     @app.post("/api/model-checks/{model_name}")
@@ -169,9 +205,14 @@ def create_app(
         from datetime import UTC, datetime
 
         check_id = f"MLOPS-{model_name}-{datetime.now(UTC):%Y%m%d%H%M%S}"
-        return await orchestrator.start_model_check(check_id=check_id, service={"service_id": model_name, "namespace": "ml", "version": "current"}, environment="production")
+        return await orchestrator.start_model_check(
+            check_id=check_id,
+            service={"service_id": model_name, "namespace": "ml", "version": "current"},
+            environment="production",
+        )
 
     if scenarios:
+
         @app.get("/api/scenarios")
         async def list_scenarios(_: Operator = Depends(operator)) -> list[str]:
             return sorted(scenarios)
@@ -185,6 +226,7 @@ def create_app(
             return {"opened": await scenarios[name]()}
 
     if metrics_registry is not None:
+
         @app.get("/metrics", include_in_schema=False)
         async def metrics() -> PlainTextResponse:
             return PlainTextResponse(generate_latest(metrics_registry).decode(), media_type="text/plain; version=0.0.4")

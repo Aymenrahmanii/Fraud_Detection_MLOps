@@ -78,7 +78,15 @@ class WorkflowState(TypedDict, total=False):
 class Deps:
     """Everything the nodes need; built by `OrchestratorService`."""
 
-    def __init__(self, *, bus: EventBus, context, hitl, policy: PolicyGate | None = None, clock: Callable[[], datetime] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        bus: EventBus,
+        context,
+        hitl,
+        policy: PolicyGate | None = None,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self.bus = bus
         self.context = context  # OrchestratorContext
         self.hitl = hitl  # HitlService (or gRPC client)
@@ -90,7 +98,9 @@ def _service(state: WorkflowState) -> ServiceIdentity:
     return ServiceIdentity(**state["service"])
 
 
-def _envelope(state: WorkflowState, *, topic: str, payload: dict[str, Any], target: str, causation_id: str | None = None, key: str) -> EventEnvelope:
+def _envelope(
+    state: WorkflowState, *, topic: str, payload: dict[str, Any], target: str, causation_id: str | None = None, key: str
+) -> EventEnvelope:
     return EventEnvelope(
         correlation_id=state["incident_id"],
         causation_id=causation_id,
@@ -116,7 +126,15 @@ class WorkflowNodes:
     # ---- helpers ---------------------------------------------------------
 
     async def _dispatch(
-        self, state: WorkflowState, agent: AgentId, objective: str, signals: dict[str, Any], *, role: str, constraints: tuple[str, ...] = (), evidence_refs: tuple[str, ...] = ()
+        self,
+        state: WorkflowState,
+        agent: AgentId,
+        objective: str,
+        signals: dict[str, Any],
+        *,
+        role: str,
+        constraints: tuple[str, ...] = (),
+        evidence_refs: tuple[str, ...] = (),
     ) -> tuple[str, dict[str, Any]]:
         """Publish one bounded task (v5 section 6.4); returns (message_id, pending entry)."""
         svc = state["service"]
@@ -139,7 +157,12 @@ class WorkflowNodes:
             state, topic=task_topic(agent), payload=task.model_dump(mode="json"), target=agent.value, key=task.task_id
         )
         await publish(self.d.bus, envelope)
-        return envelope.message_id, {"role": role, "agent": agent.value, "objective": objective, "task_id": task.task_id}
+        return envelope.message_id, {
+            "role": role,
+            "agent": agent.value,
+            "objective": objective,
+            "task_id": task.task_id,
+        }
 
     async def _stage(self, state: WorkflowState, stage: str) -> None:
         await self.d.context.update_incident(state["incident_id"], status=stage)
@@ -161,10 +184,21 @@ class WorkflowNodes:
         results = dict(state.get("results", {}))
         if state["kind"] == "INCIDENT":
             results["monitoring"] = {"payload": trigger.get("payload", {}), "confidence": trigger.get("confidence")}
-        return {"stage": "OPEN", "results": results, "pending": {}, "candidates": [], "tried": [], "replans": 0, "approval_rounds": 0, "notes": [f"workflow opened (context v{ctx.version})"]}
+        return {
+            "stage": "OPEN",
+            "results": results,
+            "pending": {},
+            "candidates": [],
+            "tried": [],
+            "replans": 0,
+            "approval_rounds": 0,
+            "notes": [f"workflow opened (context v{ctx.version})"],
+        }
 
     def route_kind(self, state: WorkflowState) -> str:
-        return {"INCIDENT": "dispatch_rca", "RELEASE": "dispatch_release", "MLOPS": "dispatch_model_health"}[state["kind"]]
+        return {"INCIDENT": "dispatch_rca", "RELEASE": "dispatch_release", "MLOPS": "dispatch_model_health"}[
+            state["kind"]
+        ]
 
     # ---- await (pure: no side effects) -----------------------------------
 
@@ -185,9 +219,19 @@ class WorkflowNodes:
                 continue
             payload = event.get("payload", {})
             if event.get("topic") == "agent.task.result":
-                results[role] = {"status": payload.get("status"), "payload": payload.get("payload", {}), "summary": payload.get("rationale_summary"), "confidence": payload.get("confidence")}
+                results[role] = {
+                    "status": payload.get("status"),
+                    "payload": payload.get("payload", {}),
+                    "summary": payload.get("rationale_summary"),
+                    "confidence": payload.get("confidence"),
+                }
             else:
-                results[role] = {"status": "SUCCEEDED", "payload": payload, "confidence": event.get("confidence"), "message_id": event.get("message_id")}
+                results[role] = {
+                    "status": "SUCCEEDED",
+                    "payload": payload,
+                    "confidence": event.get("confidence"),
+                    "message_id": event.get("message_id"),
+                }
         return {"pending": {}, "results": results, "notes": notes}
 
     def route_after_await(self, state: WorkflowState) -> str:
@@ -204,10 +248,24 @@ class WorkflowNodes:
         if replan:
             signals["required_evidence"] = list(replan.get("required_evidence", []))
         pending = {}
-        mid, entry = await self._dispatch(state, AgentId.DIAGNOSIS, "identify_root_cause_and_recommend_action", signals, role="diagnosis", constraints=constraints)
+        mid, entry = await self._dispatch(
+            state,
+            AgentId.DIAGNOSIS,
+            "identify_root_cause_and_recommend_action",
+            signals,
+            role="diagnosis",
+            constraints=constraints,
+        )
         pending[mid] = entry
         # Independent branch in parallel (v5 9: "parallel branches when independent").
-        mid, entry = await self._dispatch(state, AgentId.RESOURCE_OPTIMIZATION, "recommend_resources", signals, role="resource", constraints=("recommend_only",))
+        mid, entry = await self._dispatch(
+            state,
+            AgentId.RESOURCE_OPTIMIZATION,
+            "recommend_resources",
+            signals,
+            role="resource",
+            constraints=("recommend_only",),
+        )
         pending[mid] = entry
         return {"pending": pending, "after_await": "consensus", "stage": "DIAGNOSING"}
 
@@ -217,15 +275,26 @@ class WorkflowNodes:
         resource = r.get("resource", {})
         c = build_consensus(
             diagnosis.get("payload") if diagnosis.get("status") == "SUCCEEDED" else None,
-            resource.get("payload") if resource.get("status") == "SUCCEEDED" and resource.get("payload", {}).get("candidate_action") else None,
+            resource.get("payload")
+            if resource.get("status") == "SUCCEEDED" and resource.get("payload", {}).get("candidate_action")
+            else None,
             monitoring_confidence=r.get("monitoring", {}).get("confidence"),
         )
         for cand in c.candidates:
             await self.d.context.record_action(
                 state["incident_id"],
-                CandidateAction(action_id=cand.action_id, action_version=cand.action_version, type=cand.type, source_agent=cand.source_agent, score=round(cand.score, 4), parameters=cand.parameters),
+                CandidateAction(
+                    action_id=cand.action_id,
+                    action_version=cand.action_version,
+                    type=cand.type,
+                    source_agent=cand.source_agent,
+                    score=round(cand.score, 4),
+                    parameters=cand.parameters,
+                ),
             )
-        await self.d.context.record_decision(state["incident_id"], stage="CONSENSUS", decision_type="CONSENSUS", payload=c.as_json())
+        await self.d.context.record_decision(
+            state["incident_id"], stage="CONSENSUS", decision_type="CONSENSUS", payload=c.as_json()
+        )
         return {"consensus": c.as_json(), "candidates": [cand.as_json() for cand in c.candidates], "stage": "DECIDING"}
 
     # ---- policy -------------------------------------------------------------
@@ -251,8 +320,19 @@ class WorkflowNodes:
                 release_gate=release.get("decision") if state["kind"] == "RELEASE" else None,
             )
         )
-        await self.d.context.update_action(state["incident_id"], cand["action_id"], cand["action_version"], policy_result=decision.decision.value, risk=decision.as_json()["risk"])
-        await self.d.context.record_decision(state["incident_id"], stage="POLICY", decision_type=decision.decision.value, payload={"action_id": cand["action_id"], **decision.as_json()})
+        await self.d.context.update_action(
+            state["incident_id"],
+            cand["action_id"],
+            cand["action_version"],
+            policy_result=decision.decision.value,
+            risk=decision.as_json()["risk"],
+        )
+        await self.d.context.record_decision(
+            state["incident_id"],
+            stage="POLICY",
+            decision_type=decision.decision.value,
+            payload={"action_id": cand["action_id"], **decision.as_json()},
+        )
         return {"selected": cand, "policy": decision.as_json(), "tried": [*tried, cand["action_id"]]}
 
     def route_policy(self, state: WorkflowState) -> str:
@@ -270,9 +350,17 @@ class WorkflowNodes:
         await self._stage(state, "PLANNING")
         cand = state["selected"]
         mid, entry = await self._dispatch(
-            state, AgentId.DEPLOYMENT_RECOVERY, "prepare_action",
-            {"action_id": cand["action_id"], "action_version": cand["action_version"], "action": cand["type"], "parameters": cand["parameters"]},
-            role="plan", constraints=("dry_run_only",),
+            state,
+            AgentId.DEPLOYMENT_RECOVERY,
+            "prepare_action",
+            {
+                "action_id": cand["action_id"],
+                "action_version": cand["action_version"],
+                "action": cand["type"],
+                "parameters": cand["parameters"],
+            },
+            role="plan",
+            constraints=("dry_run_only",),
         )
         return {"pending": {mid: entry}, "after_await": "route_plan", "stage": "PLANNING"}
 
@@ -280,7 +368,9 @@ class WorkflowNodes:
         plan = state["results"].get("plan", {}).get("payload", {})
         cand = state["selected"]
         if plan.get("status") != "PREPARED":
-            await self.d.context.update_action(state["incident_id"], cand["action_id"], cand["action_version"], execution_status="PLAN_REJECTED")
+            await self.d.context.update_action(
+                state["incident_id"], cand["action_id"], cand["action_version"], execution_status="PLAN_REJECTED"
+            )
             return {"notes": [*state.get("notes", []), f"Agent 4 rejected {cand['type']}: {plan.get('reason')}"]}
         return {}
 
@@ -342,11 +432,24 @@ class WorkflowNodes:
         await publish(
             self.d.bus,
             _envelope(
-                state, topic="approval.requested", target="dashboard-ui", key=request.approval_id,
-                payload=ApprovalRequested(approval_id=request.approval_id, intent=intent, action_fingerprint=intent.fingerprint(), reason=request.reason, expires_at=approval.expires_at).model_dump(mode="json"),
+                state,
+                topic="approval.requested",
+                target="dashboard-ui",
+                key=request.approval_id,
+                payload=ApprovalRequested(
+                    approval_id=request.approval_id,
+                    intent=intent,
+                    action_fingerprint=intent.fingerprint(),
+                    reason=request.reason,
+                    expires_at=approval.expires_at,
+                ).model_dump(mode="json"),
             ),
         )
-        return {"approval": approval.model_dump(mode="json"), "approval_rounds": state.get("approval_rounds", 0) + 1, "stage": "WAITING_FOR_APPROVAL"}
+        return {
+            "approval": approval.model_dump(mode="json"),
+            "approval_rounds": state.get("approval_rounds", 0) + 1,
+            "stage": "WAITING_FOR_APPROVAL",
+        }
 
     def route_authorize(self, state: WorkflowState) -> str:
         return "execute" if state["approval"]["state"] == "APPROVED" else "await_human"
@@ -361,18 +464,34 @@ class WorkflowNodes:
     async def after_human(self, state: WorkflowState) -> WorkflowState:
         approval = state["approval"]
         await self.d.context.record_hitl_decision(
-            state["incident_id"], approval_id=approval["approval_id"], decision=approval["state"], approver_id=approval.get("approver_id"), comment=approval.get("comment") or "",
+            state["incident_id"],
+            approval_id=approval["approval_id"],
+            decision=approval["state"],
+            approver_id=approval.get("approver_id"),
+            comment=approval.get("comment") or "",
         )
         cand = state["selected"]
         await publish(
             self.d.bus,
             _envelope(
-                state, topic="approval.resolved", target="audit", key=f"{approval['approval_id']}:{approval['state']}",
-                payload=ApprovalResolved(approval_id=approval["approval_id"], action_id=cand["action_id"], action_version=cand["action_version"], decision=approval["state"], approver_id=approval.get("approver_id"), comment=approval.get("comment") or "").model_dump(mode="json"),
+                state,
+                topic="approval.resolved",
+                target="audit",
+                key=f"{approval['approval_id']}:{approval['state']}",
+                payload=ApprovalResolved(
+                    approval_id=approval["approval_id"],
+                    action_id=cand["action_id"],
+                    action_version=cand["action_version"],
+                    decision=approval["state"],
+                    approver_id=approval.get("approver_id"),
+                    comment=approval.get("comment") or "",
+                ).model_dump(mode="json"),
             ),
         )
         if approval["state"] == "REJECTED":
-            await self.d.context.update_action(state["incident_id"], cand["action_id"], cand["action_version"], execution_status="REJECTED_BY_HUMAN")
+            await self.d.context.update_action(
+                state["incident_id"], cand["action_id"], cand["action_version"], execution_status="REJECTED_BY_HUMAN"
+            )
         return {"stage": f"HITL_{approval['state']}"}
 
     def route_human(self, state: WorkflowState) -> str:
@@ -381,7 +500,11 @@ class WorkflowNodes:
             return "close_mlops" if state["kind"] == "MLOPS" else "execute"
         if approval["state"] == "EXPIRED":
             # v5 7.2: no execution; re-request only if still valid and within budget.
-            return "authorize" if state.get("approval_rounds", 0) < MAX_APPROVAL_ROUNDS and state["kind"] != "MLOPS" else "escalate"
+            return (
+                "authorize"
+                if state.get("approval_rounds", 0) < MAX_APPROVAL_ROUNDS and state["kind"] != "MLOPS"
+                else "escalate"
+            )
         if state["kind"] == "MLOPS":
             return "close_mlops"
         return "replan" if state.get("replans", 0) < MAX_REPLANS and state["kind"] == "INCIDENT" else "escalate"
@@ -401,36 +524,86 @@ class WorkflowNodes:
             idempotency_key=f"{state['incident_id']}:{cand['action_id']}:v{cand['action_version']}",
         )
         if auto:
-            envelope = _envelope(state, topic="deployment.action.requested", target=AgentId.DEPLOYMENT_RECOVERY.value, key=cand["action_id"], payload=request.model_dump(mode="json"))
+            envelope = _envelope(
+                state,
+                topic="deployment.action.requested",
+                target=AgentId.DEPLOYMENT_RECOVERY.value,
+                key=cand["action_id"],
+                payload=request.model_dump(mode="json"),
+            )
         else:
             envelope = _envelope(
-                state, topic="workflow.continuation", target=AgentId.DEPLOYMENT_RECOVERY.value, key=cand["action_id"],
-                payload=WorkflowContinuation(incident_id=state["incident_id"], next_step="EXECUTE_ACTION", action_request=request, reason="human approved the exact plan").model_dump(mode="json"),
+                state,
+                topic="workflow.continuation",
+                target=AgentId.DEPLOYMENT_RECOVERY.value,
+                key=cand["action_id"],
+                payload=WorkflowContinuation(
+                    incident_id=state["incident_id"],
+                    next_step="EXECUTE_ACTION",
+                    action_request=request,
+                    reason="human approved the exact plan",
+                ).model_dump(mode="json"),
             )
         await publish(self.d.bus, envelope)
-        await self.d.context.update_action(state["incident_id"], cand["action_id"], cand["action_version"], execution_status="EXECUTING")
-        return {"pending": {envelope.message_id: {"role": "action", "agent": AgentId.DEPLOYMENT_RECOVERY.value, "objective": "execute"}}, "after_await": "after_execute", "stage": "EXECUTING"}
+        await self.d.context.update_action(
+            state["incident_id"], cand["action_id"], cand["action_version"], execution_status="EXECUTING"
+        )
+        return {
+            "pending": {
+                envelope.message_id: {
+                    "role": "action",
+                    "agent": AgentId.DEPLOYMENT_RECOVERY.value,
+                    "objective": "execute",
+                }
+            },
+            "after_await": "after_execute",
+            "stage": "EXECUTING",
+        }
 
     async def after_execute(self, state: WorkflowState) -> WorkflowState:
         action = state["results"].get("action", {}).get("payload", {})
         cand = state["selected"]
-        await self.d.context.update_action(state["incident_id"], cand["action_id"], cand["action_version"], execution_status=action.get("status", "UNKNOWN"))
+        await self.d.context.update_action(
+            state["incident_id"],
+            cand["action_id"],
+            cand["action_version"],
+            execution_status=action.get("status", "UNKNOWN"),
+        )
         return {}
 
     def route_execute(self, state: WorkflowState) -> str:
-        return "verify" if state["results"].get("action", {}).get("payload", {}).get("status") == "SUCCESS" else "escalate"
+        return (
+            "verify" if state["results"].get("action", {}).get("payload", {}).get("status") == "SUCCESS" else "escalate"
+        )
 
     async def verify(self, state: WorkflowState) -> WorkflowState:
         await self._stage(state, "VERIFYING")
         cand = state["selected"]
-        categories = state["results"].get("monitoring", {}).get("payload", {}).get("signals", {}).get("categories", ["error_rate", "latency"])
-        mid, entry = await self._dispatch(state, AgentId.MONITORING, "verify_recovery", {"action_id": cand["action_id"], "categories": categories}, role="verification")
+        categories = (
+            state["results"]
+            .get("monitoring", {})
+            .get("payload", {})
+            .get("signals", {})
+            .get("categories", ["error_rate", "latency"])
+        )
+        mid, entry = await self._dispatch(
+            state,
+            AgentId.MONITORING,
+            "verify_recovery",
+            {"action_id": cand["action_id"], "categories": categories},
+            role="verification",
+        )
         return {"pending": {mid: entry}, "after_await": "after_verify", "stage": "VERIFYING"}
 
     async def after_verify(self, state: WorkflowState) -> WorkflowState:
         verdict = state["results"].get("verification", {}).get("payload", {}).get("status", "INCONCLUSIVE")
         cand = state["selected"]
-        await self.d.context.update_action(state["incident_id"], cand["action_id"], cand["action_version"], execution_status="VERIFIED" if verdict == "RECOVERED" else f"VERIFY_{verdict}")
+        await self.d.context.update_action(
+            state["incident_id"],
+            cand["action_id"],
+            cand["action_version"],
+            execution_status="VERIFIED" if verdict == "RECOVERED" else f"VERIFY_{verdict}",
+        )
         return {"outcome": verdict}
 
     def route_verify(self, state: WorkflowState) -> str:
@@ -442,16 +615,28 @@ class WorkflowNodes:
         """v5 17.1: ask for targeted evidence and re-run only the affected branch."""
         replans = state.get("replans", 0) + 1
         results = dict(state["results"])
-        results["replan_request"] = {"required_evidence": ["heap_usage_breakdown", "gc_metrics", "pod_status", "events"]}
+        results["replan_request"] = {
+            "required_evidence": ["heap_usage_breakdown", "gc_metrics", "pod_status", "events"]
+        }
         for role in ("diagnosis", "resource", "plan", "action", "verification"):
             results.pop(role, None)
-        await self.d.context.record_decision(state["incident_id"], stage="REPLAN", decision_type="REPLAN", payload={"replan": replans, "reason": state.get("stage")})
+        await self.d.context.record_decision(
+            state["incident_id"],
+            stage="REPLAN",
+            decision_type="REPLAN",
+            payload={"replan": replans, "reason": state.get("stage")},
+        )
         return {"results": results, "replans": replans, "approval_rounds": 0, "stage": "REPLANNING"}
 
     # ---- closing -------------------------------------------------------------
 
     async def close(self, state: WorkflowState) -> WorkflowState:
-        await self.d.context.record_decision(state["incident_id"], stage="CLOSE", decision_type="RESOLVED", payload={"outcome": state.get("outcome") or "DONE", "action": state.get("selected")})
+        await self.d.context.record_decision(
+            state["incident_id"],
+            stage="CLOSE",
+            decision_type="RESOLVED",
+            payload={"outcome": state.get("outcome") or "DONE", "action": state.get("selected")},
+        )
         await self.d.context.update_incident(state["incident_id"], status="RESOLVED", closed=True)
         return {"stage": "RESOLVED"}
 
@@ -459,7 +644,12 @@ class WorkflowNodes:
         reason = state.get("outcome") or state.get("stage") or "no safe action"
         if state.get("policy", {}) and state["policy"].get("decision") == "BLOCK":
             reason = "; ".join(state["policy"].get("reasons", [])) or reason
-        await self.d.context.record_decision(state["incident_id"], stage="CLOSE", decision_type="ESCALATED", payload={"reason": reason, "notes": state.get("notes", [])[-5:]})
+        await self.d.context.record_decision(
+            state["incident_id"],
+            stage="CLOSE",
+            decision_type="ESCALATED",
+            payload={"reason": reason, "notes": state.get("notes", [])[-5:]},
+        )
         await self.d.context.update_incident(state["incident_id"], status="ESCALATED")
         return {"stage": "ESCALATED"}
 
@@ -467,13 +657,22 @@ class WorkflowNodes:
 
     async def dispatch_release(self, state: WorkflowState) -> WorkflowState:
         await self._stage(state, "ASSESSING_RELEASE")
-        mid, entry = await self._dispatch(state, AgentId.SECURITY_QUALITY, "assess_release", dict(state.get("signals", {})), role="release")
+        mid, entry = await self._dispatch(
+            state, AgentId.SECURITY_QUALITY, "assess_release", dict(state.get("signals", {})), role="release"
+        )
         return {"pending": {mid: entry}, "after_await": "release_gate", "stage": "ASSESSING_RELEASE"}
 
     async def release_gate(self, state: WorkflowState) -> WorkflowState:
         release = state["results"].get("release", {})
-        decision = release.get("payload", {}).get("decision", "BLOCK") if release.get("status") == "SUCCEEDED" else "BLOCK"
-        await self.d.context.record_decision(state["incident_id"], stage="RELEASE_GATE", decision_type=decision, payload={"assessment": release.get("payload", {})})
+        decision = (
+            release.get("payload", {}).get("decision", "BLOCK") if release.get("status") == "SUCCEEDED" else "BLOCK"
+        )
+        await self.d.context.record_decision(
+            state["incident_id"],
+            stage="RELEASE_GATE",
+            decision_type=decision,
+            payload={"assessment": release.get("payload", {})},
+        )
         if decision == "BLOCK":
             return {"outcome": "RELEASE_BLOCKED", "candidates": []}
         version = state["signals"].get("version")
@@ -487,7 +686,16 @@ class WorkflowNodes:
             "rationale": f"release {version} passed the Agent 3 gate ({decision})",
             "intent": {},
         }
-        await self.d.context.record_action(state["incident_id"], CandidateAction(action_id=cand["action_id"], type="DEPLOY", source_agent=cand["source_agent"], score=1.0, parameters=cand["parameters"]))
+        await self.d.context.record_action(
+            state["incident_id"],
+            CandidateAction(
+                action_id=cand["action_id"],
+                type="DEPLOY",
+                source_agent=cand["source_agent"],
+                score=1.0,
+                parameters=cand["parameters"],
+            ),
+        )
         return {"candidates": [cand], "consensus": {"rca_confidence": 1.0, "evidence_strength": 1.0, "agreement": 1.0}}
 
     def route_release(self, state: WorkflowState) -> str:
@@ -501,14 +709,19 @@ class WorkflowNodes:
 
     async def dispatch_model_health(self, state: WorkflowState) -> WorkflowState:
         await self._stage(state, "ASSESSING_MODEL")
-        mid, entry = await self._dispatch(state, AgentId.MLOPS_LIFECYCLE, "assess_model_health", dict(state.get("signals", {})), role="model_health")
+        mid, entry = await self._dispatch(
+            state, AgentId.MLOPS_LIFECYCLE, "assess_model_health", dict(state.get("signals", {})), role="model_health"
+        )
         return {"pending": {mid: entry}, "after_await": "model_decision", "stage": "ASSESSING_MODEL"}
 
     async def model_decision(self, state: WorkflowState) -> WorkflowState:
         health = state["results"].get("model_health", {}).get("payload", {})
         await self.d.context.record_model_event(
-            state["incident_id"], model_name=health.get("model_name", "unknown"), model_version=health.get("model_version", "unknown"),
-            event_type="MODEL_HEALTH_ASSESSED", status=health.get("decision", "UNKNOWN"),
+            state["incident_id"],
+            model_name=health.get("model_name", "unknown"),
+            model_version=health.get("model_version", "unknown"),
+            event_type="MODEL_HEALTH_ASSESSED",
+            status=health.get("decision", "UNKNOWN"),
             metrics={"drift_detected": health.get("drift_detected"), "drift_score": health.get("drift_score")},
         )
         return {"outcome": health.get("decision")}
@@ -519,28 +732,58 @@ class WorkflowNodes:
     async def dispatch_retrain(self, state: WorkflowState) -> WorkflowState:
         await self._stage(state, "RETRAINING")
         health = state["results"]["model_health"]["payload"]
-        mid, entry = await self._dispatch(state, AgentId.MLOPS_LIFECYCLE, "retrain_and_evaluate", {"dataset_ref": health.get("dataset_ref"), "reason": "drift_and_performance_drop"}, role="lifecycle")
+        mid, entry = await self._dispatch(
+            state,
+            AgentId.MLOPS_LIFECYCLE,
+            "retrain_and_evaluate",
+            {"dataset_ref": health.get("dataset_ref"), "reason": "drift_and_performance_drop"},
+            role="lifecycle",
+        )
         return {"pending": {mid: entry}, "after_await": "promotion_review", "stage": "RETRAINING"}
 
     async def promotion_review(self, state: WorkflowState) -> WorkflowState:
         lifecycle = state["results"].get("lifecycle", {}).get("payload", {})
         await self.d.context.record_model_event(
-            state["incident_id"], model_name=lifecycle.get("model_name", "unknown"), model_version=str(lifecycle.get("registered_model_version")),
-            event_type="CANDIDATE_EVALUATED", status=lifecycle.get("decision", "UNKNOWN"),
+            state["incident_id"],
+            model_name=lifecycle.get("model_name", "unknown"),
+            model_version=str(lifecycle.get("registered_model_version")),
+            event_type="CANDIDATE_EVALUATED",
+            status=lifecycle.get("decision", "UNKNOWN"),
             metrics={"candidate": lifecycle.get("candidate"), "champion": lifecycle.get("champion")},
         )
         if lifecycle.get("decision") != "REQUEST_PROMOTION_REVIEW":
             return {"outcome": lifecycle.get("decision", "KEEP_CHAMPION"), "selected": None}
         cand = {
-            "action_id": f"ACT-PROMOTE-{state['incident_id']}"[:120], "action_version": 1, "type": "PROMOTE_MODEL",
-            "source_agent": "mlops-lifecycle-agent", "score": 1.0,
-            "parameters": {"model_name": lifecycle.get("model_name"), "version": lifecycle.get("registered_model_version"), "run_id": lifecycle.get("run_id")},
-            "rationale": lifecycle.get("rationale_summary", ""), "intent": {},
+            "action_id": f"ACT-PROMOTE-{state['incident_id']}"[:120],
+            "action_version": 1,
+            "type": "PROMOTE_MODEL",
+            "source_agent": "mlops-lifecycle-agent",
+            "score": 1.0,
+            "parameters": {
+                "model_name": lifecycle.get("model_name"),
+                "version": lifecycle.get("registered_model_version"),
+                "run_id": lifecycle.get("run_id"),
+            },
+            "rationale": lifecycle.get("rationale_summary", ""),
+            "intent": {},
         }
-        policy = {"decision": "APPROVAL_REQUIRED", "decision_score": 1.0, "risk": {"level": "MEDIUM"}, "reasons": ["model promotion requires human review (v5 18.1)"]}
+        policy = {
+            "decision": "APPROVAL_REQUIRED",
+            "decision_score": 1.0,
+            "risk": {"level": "MEDIUM"},
+            "reasons": ["model promotion requires human review (v5 18.1)"],
+        }
         await self._stage(state, "WAITING_FOR_APPROVAL")
-        approval = await self.d.hitl.create_approval(self._approval_request({**state, "selected": cand, "policy": policy}, None))
-        return {"selected": cand, "policy": policy, "approval": approval.model_dump(mode="json"), "approval_rounds": 1, "stage": "WAITING_FOR_APPROVAL"}
+        approval = await self.d.hitl.create_approval(
+            self._approval_request({**state, "selected": cand, "policy": policy}, None)
+        )
+        return {
+            "selected": cand,
+            "policy": policy,
+            "approval": approval.model_dump(mode="json"),
+            "approval_rounds": 1,
+            "stage": "WAITING_FOR_APPROVAL",
+        }
 
     def route_promotion(self, state: WorkflowState) -> str:
         return "await_human" if state.get("selected") else "close_mlops"
@@ -554,8 +797,20 @@ class WorkflowNodes:
             outcome = "KEEP_CHAMPION"
         if state.get("selected"):
             p = state["selected"]["parameters"]
-            await self.d.context.record_model_event(state["incident_id"], model_name=str(p.get("model_name")), model_version=str(p.get("version")), event_type="PROMOTION_DECISION", status=outcome or "UNKNOWN", metrics={"approver": approval.get("approver_id")})
-        await self.d.context.record_decision(state["incident_id"], stage="CLOSE", decision_type=outcome or "DONE", payload={"approval": approval.get("approval_id")})
+            await self.d.context.record_model_event(
+                state["incident_id"],
+                model_name=str(p.get("model_name")),
+                model_version=str(p.get("version")),
+                event_type="PROMOTION_DECISION",
+                status=outcome or "UNKNOWN",
+                metrics={"approver": approval.get("approver_id")},
+            )
+        await self.d.context.record_decision(
+            state["incident_id"],
+            stage="CLOSE",
+            decision_type=outcome or "DONE",
+            payload={"approval": approval.get("approval_id")},
+        )
         await self.d.context.update_incident(state["incident_id"], status=outcome or "CLOSED", closed=True)
         return {"stage": outcome or "CLOSED", "outcome": outcome}
 
@@ -582,10 +837,28 @@ def build_graph(deps: Deps, checkpointer):
     n = WorkflowNodes(deps)
     g = StateGraph(WorkflowState)
     for name in (
-        "ingest", "dispatch_rca", "consensus", "policy_gate", "prepare_action", "authorize", "execute",
-        "after_execute", "verify", "after_verify", "replan", "close", "escalate", "after_human",
-        "dispatch_release", "release_gate", "escalate_release", "dispatch_model_health", "model_decision",
-        "dispatch_retrain", "promotion_review", "close_mlops",
+        "ingest",
+        "dispatch_rca",
+        "consensus",
+        "policy_gate",
+        "prepare_action",
+        "authorize",
+        "execute",
+        "after_execute",
+        "verify",
+        "after_verify",
+        "replan",
+        "close",
+        "escalate",
+        "after_human",
+        "dispatch_release",
+        "release_gate",
+        "escalate_release",
+        "dispatch_model_health",
+        "model_decision",
+        "dispatch_retrain",
+        "promotion_review",
+        "close_mlops",
     ):
         g.add_node(name, getattr(n, name))
     g.add_node("await_events", n.await_events)
@@ -594,9 +867,29 @@ def build_graph(deps: Deps, checkpointer):
 
     g.add_edge(START, "ingest")
     g.add_conditional_edges("ingest", n.route_kind, ["dispatch_rca", "dispatch_release", "dispatch_model_health"])
-    for dispatcher in ("dispatch_rca", "prepare_action", "execute", "verify", "dispatch_release", "dispatch_model_health", "dispatch_retrain"):
+    for dispatcher in (
+        "dispatch_rca",
+        "prepare_action",
+        "execute",
+        "verify",
+        "dispatch_release",
+        "dispatch_model_health",
+        "dispatch_retrain",
+    ):
         g.add_edge(dispatcher, "await_events")
-    g.add_conditional_edges("await_events", n.route_after_await, ["consensus", "route_plan", "after_execute", "after_verify", "release_gate", "model_decision", "promotion_review"])
+    g.add_conditional_edges(
+        "await_events",
+        n.route_after_await,
+        [
+            "consensus",
+            "route_plan",
+            "after_execute",
+            "after_verify",
+            "release_gate",
+            "model_decision",
+            "promotion_review",
+        ],
+    )
     g.add_edge("consensus", "policy_gate")
     g.add_conditional_edges("policy_gate", n.route_policy, ["prepare_action", "policy_gate", "escalate"])
     g.add_conditional_edges("route_plan", n.route_plan, ["authorize", "policy_gate", "escalate"])

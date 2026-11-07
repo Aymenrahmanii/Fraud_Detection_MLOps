@@ -24,7 +24,7 @@ from aiops_platform.bus import EventBus, InMemoryIdempotencyStore, ReliableConsu
 from aiops_platform.bus.idempotency import IdempotencyStore
 from aiops_platform.context.client import OrchestratorContext
 from aiops_platform.context.service import Principal
-from aiops_platform.contracts.enums import Environment, Priority, Severity
+from aiops_platform.contracts.enums import Priority, Severity
 from aiops_platform.contracts.events import EventEnvelope
 from aiops_platform.hitl.service import HitlService, Operator
 from aiops_platform.observability.metrics import PlatformMetrics
@@ -85,13 +85,17 @@ class OrchestratorService:
         self.context = context
         self.hitl = hitl
         self.metrics = metrics or PlatformMetrics()
-        self.graph = build_graph(Deps(bus=bus, context=context, hitl=hitl, policy=policy), checkpointer or InMemorySaver())
+        self.graph = build_graph(
+            Deps(bus=bus, context=context, hitl=hitl, policy=policy), checkpointer or InMemorySaver()
+        )
         self._idempotency = idempotency or InMemoryIdempotencyStore()
         self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._started: dict[str, datetime] = {}
 
     def subscribe(self) -> None:
-        ReliableConsumer(self.bus, "orchestrator", self.on_event, idempotency=self._idempotency).subscribe(RESULT_TOPICS)
+        ReliableConsumer(self.bus, "orchestrator", self.on_event, idempotency=self._idempotency).subscribe(
+            RESULT_TOPICS
+        )
 
     @staticmethod
     def _config(incident_id: str) -> dict[str, Any]:
@@ -99,7 +103,19 @@ class OrchestratorService:
 
     # ---- starting workflows ---------------------------------------------
 
-    async def start(self, *, incident_id: str, kind: str, service: dict[str, str], environment: str, severity: str, priority: str, signals: dict[str, Any], trigger: dict[str, Any] | None = None, trace_id: str | None = None) -> dict[str, Any]:
+    async def start(
+        self,
+        *,
+        incident_id: str,
+        kind: str,
+        service: dict[str, str],
+        environment: str,
+        severity: str,
+        priority: str,
+        signals: dict[str, Any],
+        trigger: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+    ) -> dict[str, Any]:
         async with self._locks[incident_id]:
             if await self._exists(incident_id):
                 return await self.status(incident_id)
@@ -123,26 +139,51 @@ class OrchestratorService:
         await self._after_step(incident_id)
         return await self.status(incident_id)
 
-    async def start_release(self, *, release_id: str, service: dict[str, str], environment: str, version: str, commit: str, assessment: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def start_release(
+        self,
+        *,
+        release_id: str,
+        service: dict[str, str],
+        environment: str,
+        version: str,
+        commit: str,
+        assessment: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         signals: dict[str, Any] = {"version": version, "commit": commit}
         if assessment is not None:
             signals["assessment"] = assessment
         return await self.start(
-            incident_id=release_id, kind="RELEASE", service=service, environment=environment,
-            severity=Severity.MEDIUM.value, priority=Priority.P2.value, signals=signals,
+            incident_id=release_id,
+            kind="RELEASE",
+            service=service,
+            environment=environment,
+            severity=Severity.MEDIUM.value,
+            priority=Priority.P2.value,
+            signals=signals,
         )
 
-    async def start_model_check(self, *, check_id: str, service: dict[str, str], environment: str, signals: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def start_model_check(
+        self, *, check_id: str, service: dict[str, str], environment: str, signals: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         return await self.start(
-            incident_id=check_id, kind="MLOPS", service=service, environment=environment,
-            severity=Severity.MEDIUM.value, priority=Priority.P2.value, signals=signals or {},
+            incident_id=check_id,
+            kind="MLOPS",
+            service=service,
+            environment=environment,
+            severity=Severity.MEDIUM.value,
+            priority=Priority.P2.value,
+            signals=signals or {},
         )
 
     # ---- events ------------------------------------------------------------
 
     async def on_event(self, envelope: EventEnvelope) -> None:
         incident_id = envelope.correlation_id
-        if envelope.topic == "monitoring.anomaly.detected" and envelope.source == "monitoring-agent" and not await self._exists(incident_id):
+        if (
+            envelope.topic == "monitoring.anomaly.detected"
+            and envelope.source == "monitoring-agent"
+            and not await self._exists(incident_id)
+        ):
             await self.start(
                 incident_id=incident_id,
                 kind="INCIDENT",
@@ -150,7 +191,9 @@ class OrchestratorService:
                 environment=envelope.environment.value,
                 severity=envelope.severity.value,
                 priority=envelope.priority.value,
-                signals={k: v for k, v in envelope.payload.get("signals", {}).items() if not isinstance(v, (list, dict))},
+                signals={
+                    k: v for k, v in envelope.payload.get("signals", {}).items() if not isinstance(v, (list, dict))
+                },
                 trigger=envelope.model_dump(mode="json"),
                 trace_id=envelope.trace_id,
             )
@@ -167,10 +210,14 @@ class OrchestratorService:
 
     # ---- HITL entry point (called by the Dashboard) ------------------------
 
-    async def resolve_approval(self, approval_id: str, *, decision: str, operator: Operator, comment: str) -> dict[str, Any]:
+    async def resolve_approval(
+        self, approval_id: str, *, decision: str, operator: Operator, comment: str
+    ) -> dict[str, Any]:
         state = await self.hitl.resolve_approval(approval_id, decision=decision, operator=operator, comment=comment)
         self.metrics.hitl_resolved(state.state, (datetime.now(UTC) - state.expires_at).total_seconds())
-        await self.resume(state.incident_id, {"topic": "hitl", "approval_id": approval_id, "approval": state.model_dump(mode="json")})
+        await self.resume(
+            state.incident_id, {"topic": "hitl", "approval_id": approval_id, "approval": state.model_dump(mode="json")}
+        )
         return state.model_dump(mode="json", exclude={"approval_token"})
 
     # ---- timeouts / expiry ---------------------------------------------------
@@ -178,7 +225,10 @@ class OrchestratorService:
     async def sweep(self) -> None:
         for approval_id in await self.hitl.expire_due():
             state = await self.hitl.get_approval_state(approval_id)
-            await self.resume(state.incident_id, {"topic": "hitl", "approval_id": approval_id, "approval": state.model_dump(mode="json")})
+            await self.resume(
+                state.incident_id,
+                {"topic": "hitl", "approval_id": approval_id, "approval": state.model_dump(mode="json")},
+            )
         now = datetime.now(UTC)
         for incident_id in list(self._started):
             snapshot = await self.graph.aget_state(self._config(incident_id))

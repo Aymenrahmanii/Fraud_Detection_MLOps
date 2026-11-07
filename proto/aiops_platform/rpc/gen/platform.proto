@@ -1,0 +1,68 @@
+// Synchronous platform services (v5 section 4.1).
+//
+// Kafka carries the asynchronous workflow; these RPCs are short, typed,
+// deadline-bound calls. Complex values travel as the v1 JSON contracts
+// (validated by pydantic/JSON Schema on both sides) inside `*_json` fields, so
+// there is exactly one schema definition per contract.
+//
+// Caller identity is NOT a request field: it comes from authenticated call
+// metadata (mTLS identity, or a signed service token in development).
+syntax = "proto3";
+
+package aiops.v1;
+
+message IncidentRef {
+  string incident_id = 1;
+}
+
+// Generic request: the incident it targets plus the arguments as JSON.
+message Call {
+  string incident_id = 1;
+  string args_json = 2;
+}
+
+message Reply {
+  string result_json = 1;
+}
+
+service ContextService {
+  // Orchestrator: read + authoritative workflow writes.
+  rpc OpenIncident(Call) returns (Reply);
+  rpc GetIncidentContext(IncidentRef) returns (Reply);
+  rpc GetLatestAgentResults(Call) returns (Reply);
+  rpc UpdateIncident(Call) returns (Reply);
+  rpc RecordAction(Call) returns (Reply);
+  rpc UpdateAction(Call) returns (Reply);
+  rpc RecordDecision(Call) returns (Reply);
+  rpc RecordHITLDecision(Call) returns (Reply);
+  rpc RecordModelEvent(Call) returns (Reply);
+  // Agents: append only.
+  rpc AppendAgentResult(Call) returns (Reply);
+  rpc AppendEvidence(Call) returns (Reply);
+  // HITL Service: approval records.
+  rpc UpsertApproval(Call) returns (Reply);
+  rpc GetApproval(Call) returns (Reply);
+  // Orchestrator / Dashboard read views.
+  rpc ReadEvidence(Call) returns (Reply);
+  rpc ListIncidents(Call) returns (Reply);
+  rpc DashboardIncident(IncidentRef) returns (Reply);
+  rpc ListApprovals(Call) returns (Reply);
+  rpc AuditTrail(IncidentRef) returns (Reply);
+  rpc VerifyAuditChain(IncidentRef) returns (Reply);
+}
+
+service HITLService {
+  rpc CreateApproval(Call) returns (Reply);
+  rpc ResolveApproval(Call) returns (Reply);
+  rpc GetApprovalState(Call) returns (Reply);
+  rpc IssuePolicyPermit(Call) returns (Reply);
+  rpc ExpireDue(Call) returns (Reply);
+  // Agent 4's approval-provenance verifier reads the record it must trust.
+  rpc ProvenanceRecord(Call) returns (Reply);
+}
+
+service MonitoringService {
+  // Agent 4's bound recovery verification request -> Agent 1 signed verdict.
+  rpc VerifyExecution(Call) returns (Reply);
+  rpc GetServiceHealth(Call) returns (Reply);
+}

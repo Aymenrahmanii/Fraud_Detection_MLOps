@@ -67,9 +67,46 @@ AUTO-approved actions still go through the HITL Service, which then signs with
 `AUTOMATED_POLICY` provenance. Agent 4 rejects that for live mutation by design,
 so AUTO is only allowed where Agent 4 allows it (non-production, bounded scale).
 
-## Deployment target for the demo
+AUTO-approved actions get a permit signed with `AUTOMATED_POLICY` provenance,
+carried on `deployment.action.requested`. In production the Agent 4 worker
+composes the coordinator with Agent 4's own `SignedAuthorizationPermitVerifier`
+and the HITL provenance verifier, which demand `HUMAN_INTERACTIVE`, so AUTO
+can never mutate production; elsewhere the HITL token verifier is enough.
 
-No Kubernetes cluster is assumed. `workers/agent4_target.py` provides a simulated
-Deployment behind Agent 4's own inspector/mutation interfaces, mirrored onto the
-Agent 1 lab target app (rollback = clear the injected fault). A real cluster can
-replace it through Agent 4's existing `adapters/kubernetes*.py`.
+### Agent 1's verdict for Agent 4
+
+Agent 4's coordinator blocks until it holds a *signed* Agent 1 verdict bound to
+its execution (plan hash, patch hash, target UID). That is a short typed
+request, so it is a gRPC call (`MonitoringService.VerifyExecution`, served by
+the Agent 1 worker), not a Kafka round trip. Afterwards the Orchestrator still
+dispatches its own `verify_recovery` task (v5 step 10) before closing.
+
+## Synchronous calls and identity (v5 4.1, 18)
+
+`proto/aiops_platform/rpc/gen/platform.proto` defines `ContextService`,
+`HITLService` and `MonitoringService` with the v5 RPC names. Contract values
+travel as their v1 JSON inside the messages, so pydantic/JSON Schema remain
+the single source of validation. The gRPC clients implement exactly the
+in-process interfaces, so nothing above the transport changes.
+
+Each process holds one service credential (`role:name` + HMAC token issued at
+deploy time); the server derives the `Principal` from call metadata, never from
+the request body, and `ContextService` enforces the access matrix. Production
+swaps the HMAC tokens for mTLS workload identity.
+
+## Deployment
+
+* **In-process** (`runtime.py`): tests, `python -m aiops_platform.demo`.
+* **Distributed** (`compose.platform.yaml`, `services.py`): Redpanda,
+  PostgreSQL (Context + LangGraph checkpoints), Redis (idempotency), Context,
+  HITL, Orchestrator (+ HTTP API for the Dashboard), Dashboard, one container
+  per agent, and the simulated cluster as a service. Signing keys stay in their
+  own service; public keys are shared via a read-only `/trust` volume.
+
+## Deployment target
+
+No Kubernetes cluster is assumed. `sim/cluster.py` provides simulated
+Deployments behind Agent 4's own inspector/mutation interfaces, with faults
+bound to releases (rolling back v2.7 removes its leak) and telemetry derived
+from release, load and replicas. A real cluster replaces it through Agent 4's
+existing `adapters/kubernetes*.py` and Agent 2's live `KubernetesTool`.

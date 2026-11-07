@@ -21,7 +21,10 @@ def x(**overrides):
 
 def test_decision_score_uses_published_weights():
     assert gate.decision_score(x(rca_confidence=1, evidence_strength=1, historical_success=1, agent_agreement=1)) == 1.0
-    assert gate.decision_score(x(rca_confidence=0.9, evidence_strength=0.8, historical_success=0.5, agent_agreement=1)) == 0.81
+    assert (
+        gate.decision_score(x(rca_confidence=0.9, evidence_strength=0.8, historical_success=0.5, agent_agreement=1))
+        == 0.81
+    )
 
 
 def test_bounded_scale_in_staging_is_auto():
@@ -64,6 +67,10 @@ def test_result_is_auditable_json():
     data = gate.evaluate(x()).as_json()
     assert data["decision"] == "AUTO"
     assert set(data["risk"]["factors"]) == {
-        "environment_criticality", "blast_radius", "irreversibility", "data_impact", "uncertainty"
+        "environment_criticality",
+        "blast_radius",
+        "irreversibility",
+        "data_impact",
+        "uncertainty",
     }
     assert data["policy_version"] == "platform-policy-1.0"

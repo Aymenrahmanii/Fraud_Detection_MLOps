@@ -116,11 +116,11 @@ class ContextService:
         _require(principal, Role.ORCHESTRATOR)
         await self._store.record_action(incident_id, action, actor=principal.name)
 
-    async def update_action(self, principal: Principal, incident_id: str, action_id: str, action_version: int, **changes: Any) -> None:
+    async def update_action(
+        self, principal: Principal, incident_id: str, action_id: str, action_version: int, **changes: Any
+    ) -> None:
         _require(principal, Role.ORCHESTRATOR)
-        await self._store.update_action(
-            incident_id, action_id, action_version, actor=principal.name, **changes
-        )
+        await self._store.update_action(incident_id, action_id, action_version, actor=principal.name, **changes)
 
     async def record_decision(
         self, principal: Principal, incident_id: str, *, stage: str, decision_type: str, payload: dict[str, JsonValue]
@@ -131,7 +131,14 @@ class ContextService:
         )
 
     async def record_hitl_decision(
-        self, principal: Principal, incident_id: str, *, approval_id: str, decision: str, approver_id: str | None, comment: str
+        self,
+        principal: Principal,
+        incident_id: str,
+        *,
+        approval_id: str,
+        decision: str,
+        approver_id: str | None,
+        comment: str,
     ) -> str:
         """The Orchestrator's own record of the human decision it acted on."""
         _require(principal, Role.ORCHESTRATOR)

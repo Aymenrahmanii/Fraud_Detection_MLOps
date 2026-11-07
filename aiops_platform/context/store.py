@@ -76,14 +76,11 @@ class ContextStore:
         `SELECT ... FOR UPDATE` on the incident row covers several replicas on
         PostgreSQL.
         """
-        async with self._locks[incident_id]:
-            async with self._engine.begin() as conn:
-                await conn.execute(
-                    select(t.incidents.c.incident_id)
-                    .where(t.incidents.c.incident_id == incident_id)
-                    .with_for_update()
-                )
-                yield conn
+        async with self._locks[incident_id], self._engine.begin() as conn:
+            await conn.execute(
+                select(t.incidents.c.incident_id).where(t.incidents.c.incident_id == incident_id).with_for_update()
+            )
+            yield conn
 
     @classmethod
     async def connect(cls, url: str, objects: ObjectStore) -> "ContextStore":
@@ -162,9 +159,7 @@ class ContextStore:
         async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
             if values:
-                await conn.execute(
-                    update(t.incidents).where(t.incidents.c.incident_id == incident_id).values(**values)
-                )
+                await conn.execute(update(t.incidents).where(t.incidents.c.incident_id == incident_id).values(**values))
             detail = {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in values.items()}
             await self._audit(conn, incident_id, actor, "INCIDENT_UPDATED", detail)
             return await self._context(conn, incident_id)
@@ -178,9 +173,7 @@ class ContextStore:
         async with self._engine.connect() as conn:
             rows = (
                 await conn.execute(
-                    select(t.incidents.c.incident_id)
-                    .order_by(t.incidents.c.opened_at.desc())
-                    .limit(limit)
+                    select(t.incidents.c.incident_id).order_by(t.incidents.c.opened_at.desc()).limit(limit)
                 )
             ).all()
             return [await self._context(conn, r.incident_id) for r in rows]
@@ -256,13 +249,9 @@ class ContextStore:
                     created_at=_now(),
                 )
             )
-            await self._audit(
-                conn, incident_id, actor, "EVIDENCE_APPENDED", {"evidence_id": evidence_id}
-            )
+            await self._audit(conn, incident_id, actor, "EVIDENCE_APPENDED", {"evidence_id": evidence_id})
             row = (
-                await conn.execute(
-                    select(t.evidence_metadata).where(t.evidence_metadata.c.evidence_id == evidence_id)
-                )
+                await conn.execute(select(t.evidence_metadata).where(t.evidence_metadata.c.evidence_id == evidence_id))
             ).one()
             return self._evidence_ref(row)
 
@@ -282,9 +271,7 @@ class ContextStore:
     async def read_evidence(self, evidence_id: str) -> tuple[EvidenceReference, JsonValue]:
         async with self._engine.connect() as conn:
             row = (
-                await conn.execute(
-                    select(t.evidence_metadata).where(t.evidence_metadata.c.evidence_id == evidence_id)
-                )
+                await conn.execute(select(t.evidence_metadata).where(t.evidence_metadata.c.evidence_id == evidence_id))
             ).first()
         if row is None:
             raise KeyError(evidence_id)
@@ -296,9 +283,7 @@ class ContextStore:
         now = _now()
         async with self._tx(incident_id) as conn:
             await self._require(conn, incident_id)
-            key = (t.actions.c.action_id == action.action_id) & (
-                t.actions.c.action_version == action.action_version
-            )
+            key = (t.actions.c.action_id == action.action_id) & (t.actions.c.action_version == action.action_version)
             exists = (await conn.execute(select(t.actions.c.action_id).where(key))).first()
             if exists is None:
                 await conn.execute(
@@ -346,10 +331,7 @@ class ContextStore:
             await self._require(conn, incident_id)
             await conn.execute(
                 update(t.actions)
-                .where(
-                    (t.actions.c.action_id == action_id)
-                    & (t.actions.c.action_version == action_version)
-                )
+                .where((t.actions.c.action_id == action_id) & (t.actions.c.action_version == action_version))
                 .values(**values)
             )
             detail = {k: v for k, v in values.items() if k != "updated_at"}
@@ -447,9 +429,7 @@ class ContextStore:
 
     async def get_approval(self, approval_id: str) -> dict[str, Any] | None:
         async with self._engine.connect() as conn:
-            row = (
-                await conn.execute(select(t.approvals).where(t.approvals.c.approval_id == approval_id))
-            ).first()
+            row = (await conn.execute(select(t.approvals).where(t.approvals.c.approval_id == approval_id))).first()
         if row is None:
             return None
         data = dict(row._mapping)
@@ -477,14 +457,10 @@ class ContextStore:
         async with self._engine.connect() as conn:
             rows = (
                 await conn.execute(
-                    select(t.audit_log)
-                    .where(t.audit_log.c.incident_id == incident_id)
-                    .order_by(t.audit_log.c.seq)
+                    select(t.audit_log).where(t.audit_log.c.incident_id == incident_id).order_by(t.audit_log.c.seq)
                 )
             ).all()
-        return [
-            {**dict(r._mapping), "created_at": _aware(r.created_at)} for r in rows
-        ]
+        return [{**dict(r._mapping), "created_at": _aware(r.created_at)} for r in rows]
 
     async def verify_audit_chain(self, incident_id: str) -> bool:
         prev = GENESIS
@@ -504,9 +480,7 @@ class ContextStore:
     # ---- internals -------------------------------------------------------
 
     async def _incident_row(self, conn: AsyncConnection, incident_id: str):
-        return (
-            await conn.execute(select(t.incidents).where(t.incidents.c.incident_id == incident_id))
-        ).first()
+        return (await conn.execute(select(t.incidents).where(t.incidents.c.incident_id == incident_id))).first()
 
     async def _require(self, conn: AsyncConnection, incident_id: str) -> None:
         if await self._incident_row(conn, incident_id) is None:
@@ -583,9 +557,7 @@ class ContextStore:
         ).all()
         action_rows = (
             await conn.execute(
-                select(t.actions)
-                .where(t.actions.c.incident_id == incident_id)
-                .order_by(t.actions.c.score.desc())
+                select(t.actions).where(t.actions.c.incident_id == incident_id).order_by(t.actions.c.score.desc())
             )
         ).all()
         approval = (
@@ -606,9 +578,7 @@ class ContextStore:
             kind=inc.kind,
             priority=Priority(inc.priority),
             severity=Severity(inc.severity),
-            service=ServiceIdentity(
-                service_id=inc.service_id, namespace=inc.namespace, version=inc.service_version
-            ),
+            service=ServiceIdentity(service_id=inc.service_id, namespace=inc.namespace, version=inc.service_version),
             latest_signals=inc.latest_signals or {},
             candidate_actions=tuple(
                 CandidateAction(
@@ -623,9 +593,7 @@ class ContextStore:
                 )
                 for a in action_rows
             ),
-            hitl=HitlSummary(state=approval.state, approval_id=approval.approval_id)
-            if approval
-            else HitlSummary(),
+            hitl=HitlSummary(state=approval.state, approval_id=approval.approval_id) if approval else HitlSummary(),
             opened_at=_aware(inc.opened_at),
             updated_at=_aware(inc.updated_at),
             closed_at=_aware(inc.closed_at),

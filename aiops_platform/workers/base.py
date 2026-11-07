@@ -30,9 +30,7 @@ log = logging.getLogger(__name__)
 class WorkerOutput:
     result: AgentResult
     # (topic, payload, confidence, evidence_refs) of domain events to publish.
-    events: list[tuple[str, dict[str, JsonValue], float | None, tuple[str, ...]]] = field(
-        default_factory=list
-    )
+    events: list[tuple[str, dict[str, JsonValue], float | None, tuple[str, ...]]] = field(default_factory=list)
 
 
 def reply(

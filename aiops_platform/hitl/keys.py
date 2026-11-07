@@ -26,7 +26,7 @@ AGENT4_AUDIENCE = "agent4-deployment-recovery"
 class SigningKey:
     key_id: str
     issuer: str
-    private_key: Ed25519PrivateKey
+    ed25519: Ed25519PrivateKey  # the signing half; never serialized except by private_pem()
 
     @classmethod
     def generate(cls, key_id: str, issuer: str) -> "SigningKey":
@@ -51,7 +51,7 @@ class SigningKey:
         return key
 
     def private_pem(self) -> bytes:
-        return self.private_key.private_bytes(
+        return self.ed25519.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.PKCS8,
             serialization.NoEncryption(),
@@ -59,14 +59,14 @@ class SigningKey:
 
     def public_pem(self) -> str:
         return (
-            self.private_key.public_key()
+            self.ed25519.public_key()
             .public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
             .decode("ascii")
         )
 
     def sign(self, model) -> str:
         """base64url (unpadded) Ed25519 signature over the canonical JSON of `model`."""
-        raw = self.private_key.sign(canonical_json(model).encode("utf-8"))
+        raw = self.ed25519.sign(canonical_json(model).encode("utf-8"))
         return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
     def trusted_entry(self, audience: str = AGENT4_AUDIENCE) -> TrustedIssuerKey:

@@ -61,9 +61,7 @@ class ResourceOptimizationWorker(AgentWorker):
     async def run(self, task: AgentTask, request: EventEnvelope) -> WorkerOutput:
         ctx = task.task_context
         metrics = (
-            self._metrics(ctx.service_id, ctx.namespace)
-            if self._metrics
-            else metrics_from_signals(dict(ctx.signals))
+            self._metrics(ctx.service_id, ctx.namespace) if self._metrics else metrics_from_signals(dict(ctx.signals))
         )
         rec = build_recommendation(
             metrics,
@@ -90,12 +88,18 @@ class ResourceOptimizationWorker(AgentWorker):
                 )
             )
         if action.action == "SCALE_REPLICAS":
-            kind, parameters = ActionType.SCALE_REPLICAS, {"from": action.from_replicas, "to": action.to_replicas, "replicas": action.to_replicas}
+            kind, parameters = (
+                ActionType.SCALE_REPLICAS,
+                {"from": action.from_replicas, "to": action.to_replicas, "replicas": action.to_replicas},
+            )
         else:
-            kind, parameters = ActionType.INCREASE_MEMORY, {
-                "memory_limit_from_mib": int(action.memory_limit_from_mib or 0),
-                "memory_limit_to_mib": int(action.memory_limit_to_mib or 0),
-            }
+            kind, parameters = (
+                ActionType.INCREASE_MEMORY,
+                {
+                    "memory_limit_from_mib": int(action.memory_limit_from_mib or 0),
+                    "memory_limit_to_mib": int(action.memory_limit_to_mib or 0),
+                },
+            )
         intent = ActionIntent(
             action_id=f"ACTION-{task.task_id}-1",
             incident_id=task.incident_id,

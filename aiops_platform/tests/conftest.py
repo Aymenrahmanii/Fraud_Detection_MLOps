@@ -12,9 +12,7 @@ from aiops_platform.contracts.events import ServiceIdentity
 
 @pytest_asyncio.fixture
 async def store(tmp_path):
-    store = await ContextStore.connect(
-        f"sqlite+aiosqlite:///{tmp_path / 'context.db'}", InMemoryObjectStore()
-    )
+    store = await ContextStore.connect(f"sqlite+aiosqlite:///{tmp_path / 'context.db'}", InMemoryObjectStore())
     yield store
     await store.close()
 
