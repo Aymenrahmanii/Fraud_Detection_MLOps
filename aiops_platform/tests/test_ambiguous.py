@@ -29,16 +29,21 @@ def test_load_memory_follows_traffic_and_does_not_grow():
     assert late["memory_slope_mb_min"] < 5
 
 
-def test_a_wrong_change_reported_resolved_is_a_false_recovery():
+def test_a_wrong_change_that_verification_passes_is_a_false_recovery():
     case = Case("cpu_burn", "x", "ROLLBACK", "cpu_burn", lambda c: None)
-    assert verdict(case, True, "RESOLVED", "SCALE_REPLICAS", ["SCALE_REPLICAS"]).startswith(
-        "WRONG change executed, reported RESOLVED"
-    )
+    outcome = verdict(case, True, "RESOLVED", "SCALE_REPLICAS", ["SCALE_REPLICAS"], "VERIFIED")
+    assert outcome.startswith("WRONG change executed, verified as recovered")
+
+
+def test_a_wrong_change_that_verification_catches_is_reverted_not_kept():
+    case = Case("cpu_burn", "x", "ROLLBACK", "cpu_burn", lambda c: None)
+    outcome = verdict(case, True, "ESCALATED", "SCALE_REPLICAS", ["SCALE_REPLICAS"], "FAILED")
+    assert outcome == "WRONG change attempted, caught by verification and reverted"
 
 
 def test_a_wrong_proposal_that_was_not_run_is_still_reported():
     case = Case("load_memory", "x", "SCALE_REPLICAS", "load_memory", lambda c: None)
-    assert verdict(case, True, "ESCALATED", "ROLLBACK", []) == "wrong action shown to a human (nothing executed)"
+    assert verdict(case, True, "ESCALATED", "ROLLBACK", [], None) == "wrong action shown to a human (nothing executed)"
 
 
 def test_executed_actions_are_read_from_the_state_change():

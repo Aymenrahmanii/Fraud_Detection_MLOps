@@ -84,7 +84,23 @@ The v5 document says: "Implement deterministic MVP behavior before adding LLM/ad
 
 **When an LLM would be justified:** for Agent 2 on messy, unseen incidents, where the rules find no known signature. Measure it first: run the same labelled scenarios with and without the analyzer, and adopt it only if it wins without producing unsafe proposals.
 
-## 5. What is still not justified
+## 5. Verification (`aiops_platform/workers/agent1.py`, `ReleaseHealthVerifier`)
+
+Agent 1's own verifier judges error rate, latency and memory growth. The platform adds two checks it
+did not have, because a release that burns CPU passes all three:
+
+| Value | What it does | Status | Justification |
+|---|---|---|---|
+| 85% average CPU | the CPU check after an action | Config (the detector's CPU limit) | Same limit the detector uses to raise a CPU alarm. The verifier and the detector agree on "too hot". |
+| 1.0 CPU cost per request | CPU points × pods ÷ requests per second | Hand-picked | A healthy simulated service costs 0.5; the budget allows twice that. Average CPU alone was not enough: scaling from 4 to 6 pods spread a burn under the 85% line. |
+
+Before these checks, a scale-up that hid a CPU-burning release was reported RESOLVED. After them, the change
+is still attempted (the operator approves it), and then reverted when verification fails
+(`experiments/baselines/ambiguous-rules-v2.md`). This is not yet a cure: the change still runs once, and the
+real Agent 1 verifier in `agent1_monitoring/` has no CPU check of its own, so the same gap exists on the
+Docker path until that verifier is extended too.
+
+## 6. What is still not justified
 
 - **The auto threshold (0.85) and the decision weights** are not calibrated. Calibration needs labelled real outcomes: the Context store already records whether each action was verified, so this data accumulates in use.
 - **The historical success placeholder (0.5)** means the platform cannot yet learn from its own history.

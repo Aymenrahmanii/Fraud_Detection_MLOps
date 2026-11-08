@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from aiops_platform.context.service import Principal
 from aiops_platform.experiments.agent2_llm_eval import review_of
 from aiops_platform.hitl.service import Operator
 from aiops_platform.llm.client import GeminiClient, GroqClient
@@ -45,6 +46,7 @@ from aiops_platform.sim.cluster import Release, SimulatedCluster, digest_image
 from aiops_platform.sim.scenarios import CHECKOUT, PAYMENT
 
 SRE = Operator(subject="ambiguous@sre", roles=frozenset({"sre"}))
+ORCH = Principal.orchestrator()
 OUT = Path(__file__).with_name("baselines")
 DISAGREEMENT = "high specialist disagreement"
 
@@ -158,23 +160,45 @@ def _is_older(version: str, than: str) -> bool:
 WRONG_PROPOSAL_TYPES = {"ROLLBACK", "SCALE_REPLICAS"}
 
 
-def verdict(case: Case, opened: bool, stage: str | None, proposed: str | None, run: list[str]) -> str:
+def verdict(
+    case: Case, opened: bool, stage: str | None, proposed: str | None, attempted: list[str], final: str | None
+) -> str:
+    """`attempted`: the actions Agent 4 started. `final`: the verification verdict for them (VERIFIED or FAILED)."""
     if case.truth is None:
         return "quiet (correct)" if not opened else "false alarm"
     if not opened:
         return "missed (no incident)"
-    if any(action != case.truth for action in run):
-        # The platform's own verdict, when it says RESOLVED after a wrong change, is a false recovery.
-        if stage == "RESOLVED":
-            return "WRONG change executed, reported RESOLVED (false recovery)"
+    wrong = [action for action in attempted if action != case.truth]
+    if wrong:
+        if final == "VERIFIED":
+            # The platform's own verdict says recovered while a wrong change is in place: a false recovery.
+            return "WRONG change executed, verified as recovered (false recovery)"
+        if final == "FAILED":
+            return "WRONG change attempted, caught by verification and reverted"
         return "WRONG change executed"
-    if case.truth in run:
-        return "correct"
+    if case.truth in attempted:
+        return "correct" if final == "VERIFIED" else "correct change attempted, failed verification"
     if proposed in WRONG_PROPOSAL_TYPES and proposed != case.truth:
         return "wrong action shown to a human (nothing executed)"
     if stage == "ESCALATED":
         return "escalated to a human (nothing executed)"
     return f"no change (stage {stage})"
+
+
+async def attempted_actions(platform: Platform, incident: str) -> tuple[list[str], str | None]:
+    """The action types Agent 4 started on this incident, and the final verification verdict for them.
+    Read from the audit trail, so a change that was later reverted still counts as attempted."""
+    context = await platform.context.get_incident_context(ORCH, incident)
+    types = {action.action_id: action.type for action in context.candidate_actions}
+    trail = await platform.context.audit_trail(ORCH, incident)
+    updates = [row["detail_json"] for row in trail if row["action"] == "ACTION_UPDATED"]
+    attempted = [
+        types[d["action_id"]] for d in updates if d.get("execution_status") == "EXECUTING" and d["action_id"] in types
+    ]
+    final = next(
+        (d["execution_status"] for d in reversed(updates) if d.get("execution_status") in ("VERIFIED", "FAILED")), None
+    )
+    return attempted, final
 
 
 def operator_decision(operator: str, approval: dict[str, Any]) -> tuple[str, str]:
@@ -207,9 +231,10 @@ async def run_case(case: Case, *, client, operator: str, workdir: Path) -> dict[
                 approval["approval_id"], decision=decision, operator=SRE, comment=comment
             )
             await platform.bus.drain(timeout=120)
+        attempted, final = await attempted_actions(platform, opened[0]) if opened else ([], None)
         if opened:
             stage = (await platform.orchestrator.status(opened[0])).get("stage")
-        run = executed(before, snapshot(cluster))
+        net = executed(before, snapshot(cluster))
         review = await review_of(platform, opened[0]) if opened else {"status": "OFF"}
         return {
             "family": case.family,
@@ -218,9 +243,11 @@ async def run_case(case: Case, *, client, operator: str, workdir: Path) -> dict[
             "opened": len(opened),
             "proposed": proposed,
             "approvals_asked": len(approvals),
-            "executed": run,
+            "executed": attempted,
+            "verification": final,
+            "net_state_change": net,
             "stage": stage,
-            "outcome": verdict(case, bool(opened), stage, proposed, run),
+            "outcome": verdict(case, bool(opened), stage, proposed, attempted, final),
             "review_status": review.get("status"),
             "review_root_cause": review.get("llm_root_cause"),
             "review_agrees": review.get("agrees"),
