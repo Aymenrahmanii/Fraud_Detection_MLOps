@@ -267,6 +267,9 @@ The frame-paper strip of seven stage buttons (number, uppercase name, 32px count
 ### Decision Block
 The memorable moment. A signal-wash zone ruled in signal red top and bottom. It opens with a solid red band carrying the uppercase heading, the countdown (15px/800) and the permission line. Below: the action at display size with a body-size target, the exact from→to patch in a white ruled box (from struck through in secondary ink, to in 700 with an arrow icon), a one-line precondition with a green check, then reasons beside risk bars in a two-column grid. The footer is sticky at desktop: a one-row comment field with Approve and Reject, over a red rule on the same wash.
 
+### Audit Trail
+The audit trail reads as a story, grouped under the seven phase headings. Each group has a rule above it, the phase number and name, and a count with the phase's duration. Each record is one row: an offset from the workflow's start (`+3.52 s`, tabular figures), a plain sentence, and the actor with its role. Markers are squares on a hairline, like the stage rail: ink for a system step, green only for a verified outcome, red for a human decision or a failure, and a hollow square for bookkeeping (evidence stored, status moves). Opening a row shows its note and the raw record. The summary above the groups states records, actors, end-to-end time and the number of human decisions.
+
 ### Outcome Band
 A full-width solid band with an icon and 600 text: green for verified, red for escalated, ink for other closures.
 

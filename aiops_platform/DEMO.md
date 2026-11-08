@@ -49,6 +49,71 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8090/api/model-checks/machine-fa
 
 ---
 
+## 0. What each scenario is for
+
+Each scenario exercises one part of the platform. The reasoning below follows the
+agents and the policy gate step by step, with the rules from `policy/policy.yaml`:
+an action runs by itself only when its risk is low and its decision score is at
+least 0.85; a production change needs a human unless it is pre-authorized (only
+replica scaling in staging, test and local is); a human can only approve with the
+role the action requires.
+
+| Scenario | What it tests | Human approval | Expected end state |
+|---|---|---|---|
+| Memory leak after deploy | a bad release, and whether the platform rolls back instead of masking it | yes: SRE | RESOLVED, recovery verified, v2.6 running |
+| CPU load spike | a real capacity problem: should the service scale out? | yes in production (staging scales alone) | RESOLVED after approval; ESCALATED if rejected |
+| Release v2.8 (failing test) | a broken build must never reach production | no | RELEASE_BLOCKED, nothing deployed |
+| Release v2.8 (fixed) | a good build still needs the owner of deployments | yes: release manager | RESOLVED, v2.8 running |
+| Model drift check | a model whose data changed is retrained, but the champion is replaced only by a person | yes: ML lead | PROMOTION_APPROVED; no infrastructure changed |
+
+### Memory leak after deploy
+
+1. Agent 1 sees memory at 81% and climbing after the v2.7 deploy, while error rate and latency are still fine. The growth rule fires and the workflow opens.
+2. The Orchestrator asks Agents 2 and 5. Agent 2 ranks **MEMORY_LEAK_POST_DEPLOY** first at 70%, citing 10 evidence records, including the deploy itself. Agent 5 finds no resource change justified: raising limits would hide the leak.
+3. Two candidates remain: a rollback (score 0.70) and a scale-up (0.35). The rollback wins.
+4. Policy: the rollback is medium risk (0.45) and its decision score (0.67) is below 0.85, so it is not automatic. Production is never pre-authorized, so a human must approve.
+5. Agent 4 turns the rollback into an exact patch (image v2.7 → v2.6, with preconditions on the object's UID and resourceVersion) and dry-runs it against the live object.
+6. An SRE approves. The approval becomes a signed permit for that exact plan; Agent 4 applies only that patch, and Agent 1 verifies over a one-minute window: error rate, latency and memory growth must all pass.
+
+**Expected:** RESOLVED, outcome RECOVERED, payment-service on v2.6, audit chain verified. On Docker, about 90 s from approval to verified recovery.
+**If nobody answers:** the approval is requested twice (600 s each by default), then the workflow escalates with reason *HITL expired*. Nothing is executed.
+
+### CPU load spike
+
+1. Agent 1 sees checkout-api saturating its CPU under a traffic spike.
+2. Agent 2 concludes **resource pressure / CPU starvation** and proposes scaling (score 0.98). Agent 5 proposes scaling from 3 to 5 replicas (0.95).
+3. Policy: scaling is low risk, but production is not pre-authorized, so a human must approve.
+4. Agent 4 refuses Agent 2's version: *scale intent has no exact replica count*. Agent 5's version (3 → 5) is a complete plan and goes to the human.
+5. A human then decides:
+   - **Approve:** the service scales to 5 replicas and Agent 1 verifies recovery.
+   - **Reject:** the Orchestrator never proposes the same change again. The only other option is refused by Agent 4, so the workflow escalates with *Rejected by human*. Nothing is executed.
+
+**Staging contrast:** `--auto` runs the same spike in staging. Scaling is pre-authorized there, so the workflow goes straight to AUTO and resolves without a human. Use it to show bounded autonomy.
+
+### Release v2.8, failing test
+
+1. Agent 3 runs the tests, the quality gate and the security scanners: 123 of 124 tests pass.
+2. The gate decides BLOCK with the reason *1 failing test*. The release workflow stops there: no candidate action, no approval, nothing deployed.
+
+**Expected:** RELEASE_BLOCKED within about 2 s, and zero infrastructure changes. No human is involved, which is the point: the gate needs no approval to say no.
+
+### Release v2.8, fixed
+
+1. Agent 3 allows the release: 124 of 124 tests pass, coverage 87.3%.
+2. The Orchestrator proposes a deployment. It has the widest blast radius of the actions (0.6) and targets production, so approval is required.
+3. An SRE tries to approve and is refused (403): deployments belong to the release manager.
+4. The release manager approves. Agent 4 prepares and dry-runs the deployment, applies it, and Agent 1 verifies v2.8 against the SLO.
+
+**Expected:** RESOLVED, v2.8 running, about 90 s on Docker from approval to verified recovery.
+
+### Model drift check
+
+1. Agent 6 measures the drift on recent data: drift is detected (score 1.31), and the decision is RETRAIN_AND_EVALUATE.
+2. It trains a challenger and compares it with the champion: F1 0.89 against 0.71. The result is REQUEST_PROMOTION_REVIEW, never an automatic promotion.
+3. The ML lead reviews the comparison and approves. The workflow ends in PROMOTION_APPROVED.
+
+**Expected:** PROMOTION_APPROVED and no infrastructure changed: promotion is a governance decision, recorded in the audit trail. Be ready to say the F1 values come from a small demo dataset.
+
 ## 1. The use cases
 
 Start a fresh server for this section, with a short approval lifetime so that
