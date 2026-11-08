@@ -427,7 +427,8 @@ function renderSheet() {
   const context = detail.context;
   const workflow = detail.workflow || {};
   const approval = state.approvals.find((a) => a.incident_id === context.incident_id && a.state === "WAITING_FOR_HUMAN");
-  const key = JSON.stringify([detail, approval, state.messages[context.incident_id], state.phase]);
+  /* The operator is part of the key: what the sheet offers (approve, reject, "you approve as") depends on who is signed in. */
+  const key = JSON.stringify([state.me?.subject, state.me?.roles, detail, approval, state.messages[context.incident_id], state.phase]);
   if (key === state.sheetKey) return;
   state.sheetKey = key;
 
@@ -1329,6 +1330,10 @@ async function signIn(token) {
 }
 function signOut(reason) {
   state.token = ""; state.me = null; state.incidents = []; state.selected = null; state.detail = null;
+  /* Nothing of one operator's session may show in the next one's: drafts, messages, the rendered sheet. */
+  state.approvals = []; state.comments = {}; state.messages = {}; state.phase = null; state.busy = false;
+  state.sheetKey = "";
+  renderSheetEmpty();
   try { sessionStorage.removeItem("aiops-token"); } catch (_) { /* ignore */ }
   $("#workspace").hidden = true; $("#loop").hidden = true; $("#operator").hidden = true;
   $("#signin").hidden = false;
