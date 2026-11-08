@@ -41,6 +41,7 @@ from aiops_platform.hitl.service import Operator
 from aiops_platform.llm.client import GeminiClient, GroqClient
 from aiops_platform.llm.investigator import Investigator
 from aiops_platform.llm.sim_tools import DECLARATIONS, make_sim_tools
+from aiops_platform.policy import PolicyGate
 from aiops_platform.runtime import Platform
 from aiops_platform.sim.cluster import Release, SimulatedCluster, digest_image
 from aiops_platform.sim.scenarios import CHECKOUT, PAYMENT
@@ -168,6 +169,10 @@ def verdict(
         return "quiet (correct)" if not opened else "false alarm"
     if not opened:
         return "missed (no incident)"
+    if final == "BLOCKED":
+        # Agent 4 refused the request before anything was applied (for example, an automated production
+        # action, which Agent 4 accepts only with a signed human permit).
+        return "refused by Agent 4 before execution (nothing applied)"
     wrong = [action for action in attempted if action != case.truth]
     if wrong:
         if final == "VERIFIED":
@@ -196,7 +201,12 @@ async def attempted_actions(platform: Platform, incident: str) -> tuple[list[str
         types[d["action_id"]] for d in updates if d.get("execution_status") == "EXECUTING" and d["action_id"] in types
     ]
     final = next(
-        (d["execution_status"] for d in reversed(updates) if d.get("execution_status") in ("VERIFIED", "FAILED")), None
+        (
+            d["execution_status"]
+            for d in reversed(updates)
+            if d.get("execution_status") in ("VERIFIED", "FAILED", "BLOCKED")
+        ),
+        None,
     )
     return attempted, final
 
@@ -211,10 +221,13 @@ def operator_decision(operator: str, approval: dict[str, Any]) -> tuple[str, str
     return "APPROVE", "approved: no disagreement flagged"
 
 
-async def run_case(case: Case, *, client, operator: str, workdir: Path) -> dict[str, Any]:
+async def run_case(case: Case, *, client, operator: str, workdir: Path, policy: dict | None = None) -> dict[str, Any]:
     cluster = service_cluster(case.payment_fault)
     investigator = Investigator(client, make_sim_tools(cluster), DECLARATIONS) if client is not None else None
-    platform = await Platform.in_memory(workdir, cluster, watched=[PAYMENT, CHECKOUT], agent2_investigator=investigator)
+    gate = PolicyGate(policy) if policy is not None else None  # None = the shipped policy
+    platform = await Platform.in_memory(
+        workdir, cluster, watched=[PAYMENT, CHECKOUT], agent2_investigator=investigator, policy=gate
+    )
     try:
         case.inject(cluster)
         opened = await platform.watcher.tick()
@@ -260,14 +273,18 @@ async def run_case(case: Case, *, client, operator: str, workdir: Path) -> dict[
         await platform.close()
 
 
-async def run_all(*, client=None, operator: str = "worst", pause: float = 0.0) -> list[dict[str, Any]]:
+async def run_all(
+    *, client=None, operator: str = "worst", pause: float = 0.0, policy: dict | None = None
+) -> list[dict[str, Any]]:
     rows = []
     with tempfile.TemporaryDirectory(prefix="ambiguous-", ignore_cleanup_errors=True) as raw:
         tmp = Path(raw)
         for i, case in enumerate(cases()):
             if client is not None and pause and i:
                 await asyncio.sleep(pause)  # the provider's per-minute quota
-            rows.append(await run_case(case, client=client, operator=operator, workdir=tmp / f"case-{i}"))
+            rows.append(
+                await run_case(case, client=client, operator=operator, workdir=tmp / f"case-{i}", policy=policy)
+            )
     return rows
 
 
