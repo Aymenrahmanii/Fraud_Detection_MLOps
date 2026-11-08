@@ -78,6 +78,13 @@ curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer $env:GROQ_A
 The keys were pasted into a chat during this check, so treat them as exposed.
 Revoke both and create new ones before enabling anything.
 
+## What the Agent 2 evaluation found (2026-11-08)
+
+- `gemini-3.8-flash` did not answer on this key: requests hung past 45 s. The evaluation ran on `gemini-3.6-flash`, the newest Flash that responded. `gemini-3.5-flash` and `gemini-3.1-flash-lite` also responded; `gemini-3.7-flash` returned 503.
+- The key's free quota was used up during the evaluation. The API returns HTTP 429 ("exceeded your current quota"). Four of six reviews were refused for this reason, and those runs fell back to the rules.
+- Across the runs, five of the six memory-leak reviews completed, and all five agreed with the rules. They used up to three tool calls and answered in about 1.4 to 3.6 seconds. No CPU-spike review completed, so the staging side of the evaluation is still open.
+- Re-run `agent2_llm_eval` once billing is enabled or the quota resets. It accepts `--model`, and the report states which model it used.
+
 ## Sources
 
 - Groq models page: https://console.groq.com/docs/models.md (lists `openai/gpt-oss-120b` and `openai/gpt-oss-20b` as production models; Llama entries disputed in third-party sources)

@@ -57,6 +57,7 @@ class Platform:
         bus: InMemoryBus | None = None,
         agent_context: Callable[[ContextService, AgentId], object] | None = None,
         policy: PolicyGate | None = None,
+        agent2_investigator=None,
     ) -> "Platform":
         """`bus` and `agent_context` let experiments inject faults (duplicates, outages);
         `policy` lets experiments run the loop with other parameters."""
@@ -100,7 +101,9 @@ class Platform:
         m = {"metrics": metrics}
         workers = [
             MonitoringWorker(bus, ctx(AgentId.MONITORING), agent=agent, publisher=publisher, **m),
-            DiagnosisWorker(bus, ctx(AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster), **m),
+            DiagnosisWorker(
+                bus, ctx(AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster), investigator=agent2_investigator, **m
+            ),
             SecurityQualityWorker(bus, ctx(AgentId.SECURITY_QUALITY), **m),
             DeploymentWorker(
                 bus, ctx(AgentId.DEPLOYMENT_RECOVERY), executor=executor, plans=PlanStore(workdir / "plans"), **m
