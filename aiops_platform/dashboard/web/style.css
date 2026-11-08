@@ -319,15 +319,43 @@ tr[aria-selected="true"] .rail i[data-s="now"] { border-color: var(--paper); bac
 .agent-name small { display: block; font-weight: 400; color: var(--ink-3); font-size: var(--t-small); }
 .agent-summary { color: var(--ink-2); overflow-wrap: anywhere; }
 
-.timeline { display: grid; font-size: var(--t-small); }
-.timeline li { display: grid; grid-template-columns: 4.5rem 9rem 1fr; gap: var(--s-3); padding: 6px 0; border-bottom: 1px solid var(--rule); }
-.timeline li:last-child { border-bottom: 0; }
-.timeline time { color: var(--ink-3); }
-.timeline .who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.timeline .what { overflow-wrap: anywhere; }
-.timeline .what small { color: var(--ink-3); font-size: var(--t-small); }
-.timeline li[data-tone="signal"] .what { color: var(--signal-ink); font-weight: 600; }
-.timeline li[data-tone="ok"] .what { color: var(--ok); font-weight: 600; }
+/* ---- audit trail: the workflow as a story, one group per phase ---------- */
+.audit-summary { font-size: var(--t-small); color: var(--ink-2); margin-top: var(--s-1); }
+.audit-legend { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); margin: var(--s-3) 0 var(--s-1); font-size: var(--t-small); color: var(--ink-3); }
+.audit-legend li { display: flex; align-items: center; gap: var(--s-2); }
+/* A marker is a square, like the stage rail: ink for a system step, green for verified,
+   red for a human decision or a failure, a hollow square for bookkeeping. */
+.trail-row::before, .audit-legend li::before {
+  content: ""; flex: none; width: 9px; height: 9px; box-sizing: border-box;
+  background: var(--ink); border: 1px solid var(--ink);
+}
+.trail-row[data-tone="ok"]::before, .audit-legend li[data-tone="ok"]::before { background: var(--ok); border-color: var(--ok); }
+.trail-row[data-tone="signal"]::before, .audit-legend li[data-tone="signal"]::before { background: var(--signal); border-color: var(--signal); }
+.trail-row[data-tone="quiet"]::before, .audit-legend li[data-tone="quiet"]::before { background: var(--paper-3); border-color: var(--rule-2); }
+.trail { display: grid; gap: var(--s-4); margin-top: var(--s-2); }
+.trail-group { border-top: 1px solid var(--rule); padding-top: var(--s-3); min-width: 0; }
+.trail-head { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--t-small); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.trail-head .phase-no { color: var(--ink-3); }
+.trail-head .aside { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ink-3); }
+.trail-rows { position: relative; display: grid; margin-top: var(--s-1); }
+.trail-rows::before { content: ""; position: absolute; left: 4px; top: 16px; bottom: 16px; width: 1px; background: var(--rule-2); }
+.trail-row { position: relative; padding-left: 22px; min-width: 0; }
+.trail-row::before { position: absolute; left: 0; top: 12px; }
+.trail-row summary {
+  display: grid; grid-template-columns: 5.75rem minmax(0, 1fr) minmax(8rem, 12rem); gap: var(--s-3); align-items: baseline;
+  padding: 7px 0; cursor: pointer; list-style: none; font-size: var(--t-small);
+}
+.trail-row summary::-webkit-details-marker { display: none; }
+.trail-row summary:hover .trail-what { text-decoration: underline; text-underline-offset: 3px; }
+.trail-offset { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trail-what { font-weight: 600; overflow-wrap: anywhere; }
+.trail-row[data-tone="ok"] .trail-what { color: var(--ok); }
+.trail-row[data-tone="signal"] .trail-what { color: var(--signal-ink); }
+.trail-who { display: grid; min-width: 0; color: var(--ink-2); }
+.trail-who b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trail-who small { color: var(--ink-3); }
+.trail-more { display: grid; gap: var(--s-2); padding: 0 0 var(--s-3); font-size: var(--t-small); }
+.trail-note { color: var(--ink-2); }
 .chain { display: inline-flex; align-items: center; gap: var(--s-1); font-weight: 700; }
 .chain[data-ok="true"] { color: var(--ok); }
 .chain[data-ok="false"] { color: var(--signal-ink); }
@@ -436,23 +464,7 @@ button.rail-step:hover span { text-decoration: underline; text-underline-offset:
 }
 .raw-details > summary { margin-top: var(--s-1); }
 
-.records { display: grid; font-size: var(--t-small); }
-.records li { border-bottom: 1px solid var(--rule); }
-.records li:last-child { border-bottom: 0; }
-.records summary {
-  display: grid; grid-template-columns: 7rem 8rem minmax(0, 1fr); gap: var(--s-3);
-  padding: 6px 0; cursor: pointer; list-style: none;
-}
-.records summary::-webkit-details-marker { display: none; }
-.records summary:hover .what { text-decoration: underline; text-underline-offset: 3px; }
-.records details[open] > summary { font-weight: 600; }
-.records time { color: var(--ink-3); }
-.records .who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.records .what { overflow-wrap: anywhere; }
-.records .what small { color: var(--ink-3); font-size: var(--t-small); }
-.records li[data-tone="signal"] .what { color: var(--signal-ink); font-weight: 600; }
-.records li[data-tone="ok"] .what { color: var(--ok); font-weight: 600; }
-.records .raw { margin-bottom: var(--s-2); }
+.trail-row .raw-details { margin-top: 0; }
 
 .pending-strip {
   display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
@@ -539,13 +551,10 @@ button.rail-step:hover span { text-decoration: underline; text-underline-offset:
   .decide-comment { grid-column: 1 / -1; }
   .phase-body, .phase-band, .pending-strip, .rail-hint { padding-left: var(--s-4); padding-right: var(--s-4); }
   .phase-body > .decision { margin-left: calc(var(--s-4) * -1); margin-right: calc(var(--s-4) * -1); }
-  .records summary { grid-template-columns: 6.5rem minmax(0, 1fr); }
-  .records .what { grid-column: 1 / -1; }
   .agent { grid-template-columns: 1fr auto; }
   .agent-summary { grid-column: 1 / -1; }
-  .timeline li { grid-template-columns: 4.5rem 1fr; }
-  .timeline .who { grid-column: 2; }
-  .timeline .what { grid-column: 1 / -1; }
+  .trail-row summary { grid-template-columns: 5rem minmax(0, 1fr); }
+  .trail-who { grid-column: 2; }
   .bar { grid-template-columns: 1fr 2.6rem; }
   .bar span:first-child { grid-column: 1 / -1; }
   .rail-step span, .rail-step time { display: none; }

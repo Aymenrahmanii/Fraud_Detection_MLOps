@@ -404,7 +404,7 @@ function phaseModel(audit) {
     rows[current].push(row);
     if (row.action === "AGENT_RESULT_APPENDED" && row.detail?.task_id) resultPhase.set(row.detail.task_id, current);
   }
-  return { rows, resultPhase, times: rows.map((r) => r[0]?.at || null) };
+  return { rows, resultPhase, times: rows.map((r) => r[0]?.at || null), origin: audit[0]?.at || null };
 }
 function openPhase(i) {
   state.phase = i;
@@ -792,23 +792,62 @@ function agentsBlock(context, model) {
         h("span", { class: "tag", "data-tone": r.status === "SUCCEEDED" ? null : "signal", text: r.status === "SUCCEEDED" ? "ok" : humanize(r.status) }));
     })));
 }
-function auditLine(row) {
+/* What one audit record means, in plain words. The marker tone follows the design rules:
+   ink = a system step, green = verified, red = a human decision or a failure, grey = bookkeeping. */
+function auditStory(row) {
   const d = row.detail || {};
-  const agent = (id) => (AGENTS[id] || [id])[0];
   switch (row.action) {
-    case "INCIDENT_OPENED": return ["Workflow opened", null];
-    case "INCIDENT_UPDATED": return [d.status ? `Status → ${STATUS_LABEL[d.status] || humanize(d.status)}` : "Workflow updated", TERMINAL[d.status] === "ok" ? "ok" : TERMINAL[d.status] === "fail" ? "signal" : null];
-    case "AGENT_RESULT_APPENDED": return [`${agent(d.agent_id)} reported ${humanize(String(d.type || "").split(":").pop())}`, null];
-    case "EVIDENCE_APPENDED": return ["Evidence stored", null, d.evidence_id];
-    case "ACTION_RECORDED": return [`Candidate ${humanize(d.type)} (score ${num(d.score)})`, null];
-    case "ACTION_UPDATED": return [`Action ${humanize(d.execution_status || d.policy_result || "updated")}`, d.execution_status === "VERIFIED" ? "ok" : null];
-    case "DECISION_RECORDED": return [`${humanize(d.stage)}: ${humanize(d.type)}`, d.type === "ESCALATED" ? "signal" : d.type === "RESOLVED" ? "ok" : null];
-    case "APPROVAL_WAITING_FOR_HUMAN": return ["Approval requested", "signal"];
-    case "APPROVAL_APPROVED": return [`Approved by ${d.approver_id}`, "ok"];
-    case "APPROVAL_REJECTED": return [`Rejected by ${d.approver_id}`, "signal"];
-    case "APPROVAL_EXPIRED": return ["Approval expired", "signal"];
-    case "MODEL_EVENT_RECORDED": return [`Model ${humanize(d.type)}`, null, d.model];
-    default: return [humanize(row.action), null];
+    case "INCIDENT_OPENED": return { what: "Workflow opened" };
+    case "INCIDENT_UPDATED": {
+      if (d.status) {
+        const t = TERMINAL[d.status];
+        return { what: `Moved to ${STATUS_LABEL[d.status] || humanize(d.status)}`, tone: t === "ok" ? "ok" : t === "fail" ? "signal" : t ? null : "quiet" };
+      }
+      return { what: d.closed_at ? "Closed" : "Workflow updated", tone: "quiet" };
+    }
+    case "AGENT_RESULT_APPENDED":
+      return {
+        what: `Result: ${humanize(String(d.type || "").split(":").pop())}`,
+        note: d.task_id ? h("span", {}, "Task ", h("code", { text: d.task_id })) : null,
+      };
+    case "EVIDENCE_APPENDED":
+      return { what: "Stored evidence", tone: "quiet", note: d.evidence_id ? h("code", { text: d.evidence_id }) : null };
+    case "ACTION_RECORDED": return { what: `Proposed ${humanize(d.type)}`, note: `Score ${num(d.score)}` };
+    case "ACTION_UPDATED": {
+      const outcome = {
+        EXECUTING: ["Executing the approved change", null],
+        SUCCESS: ["Change applied, verifying recovery", null],
+        VERIFIED: ["Recovery verified", "ok"],
+        FAILED: ["Change failed", "signal"],
+        BLOCKED: ["Change blocked", "signal"],
+        PLAN_REJECTED: ["Plan refused by Agent 4", null],
+        REJECTED_BY_HUMAN: ["Rejected by a human", "signal"],
+      }[d.execution_status];
+      if (outcome) return { what: outcome[0], tone: outcome[1] };
+      if (d.policy_result) return { what: "Recorded the policy result", tone: "quiet" };
+      return { what: "Action updated", tone: "quiet" };
+    }
+    case "DECISION_RECORDED":
+      switch (d.stage) {
+        case "CONSENSUS": return { what: "Consensus on the candidates", note: `${(d.candidates || []).length} candidates ranked` };
+        case "POLICY": return { what: `Policy: ${humanize(d.type)}`, note: `Decision score ${num(d.decision_score)} · risk ${String(d.risk?.level || "–").toLowerCase()}` };
+        case "RELEASE_GATE": return { what: `Release gate: ${humanize(d.type)}`, tone: d.type === "BLOCK" ? "signal" : null };
+        case "HITL":
+          if (d.type === "HITL_APPROVED") return { what: "Workflow resumed to execute", note: `Approved by ${d.approver_id}` };
+          return { what: `Workflow resumed: ${humanize(String(d.type || "").replace("HITL_", ""))}`, tone: "signal" };
+        case "REPLAN": return { what: "Re-planning", note: `After ${humanize(d.reason)}` };
+        case "CLOSE": {
+          const tone = ["RESOLVED", "PROMOTION_APPROVED"].includes(d.type) ? "ok" : ["ESCALATED", "RELEASE_BLOCKED"].includes(d.type) ? "signal" : null;
+          return { what: `Closed: ${humanize(d.type)}`, tone, note: d.reason ? `Reason: ${humanize(d.reason)}` : null };
+        }
+        default: return { what: `${humanize(d.stage)}: ${humanize(d.type)}` };
+      }
+    case "APPROVAL_WAITING_FOR_HUMAN": return { what: "Asked a human to decide", tone: "signal", note: "Nothing runs until a human approves" };
+    case "APPROVAL_APPROVED": return { what: `Approved by ${d.approver_id}`, note: "Signed permit issued for the exact plan" };
+    case "APPROVAL_REJECTED": return { what: `Rejected by ${d.approver_id}`, tone: "signal", note: "Nothing executes" };
+    case "APPROVAL_EXPIRED": return { what: "Approval expired", tone: "signal", note: "Nothing executes" };
+    case "MODEL_EVENT_RECORDED": return { what: `Model ${humanize(d.type)}`, note: d.model ? h("code", { text: d.model }) : null };
+    default: return { what: humanize(row.action), tone: "quiet" };
   }
 }
 /* ---- one phase, in full ------------------------------------------------------------------ */
@@ -872,7 +911,7 @@ function phaseBlock(i, view) {
           metaItem("Records", String(rows.length)))
         : null,
       ...phaseOutputs(i, rows, view),
-      rows.length ? recordsView(rows, context.incident_id) : null));
+      rows.length ? recordsView(rows, context.incident_id, model.origin) : null));
 }
 
 function phaseOutputs(i, rows, view) {
@@ -1141,21 +1180,43 @@ function closeView(rows, context, detail) {
     (d.notes || []).length ? h("ul", { class: "reasons" }, d.notes.map((x) => h("li", { text: x }))) : null,
     close ? rawDetails("Raw close decision", d, `${close.seq}:close`) : null);
 }
-function recordsView(rows, incidentId) {
+/* One audit record as a row: offset from the workflow's start, the sentence, who wrote it.
+   Opening a row shows its note and the raw record. */
+function trailOffset(seconds) {
+  if (seconds < 10) return `+${seconds.toFixed(2)} s`;
+  if (seconds < 60) return `+${seconds.toFixed(1)} s`;
+  return `+${Math.floor(seconds / 60)} m ${pad(Math.round(seconds % 60))} s`;
+}
+function trailRow(row, origin, incidentId) {
+  const story = auditStory(row);
+  const many = row.count > 1;
+  const key = `rec:${incidentId}:${row.seq}`;
+  const [name, role] = AGENTS[row.actor] || [row.actor, ""];
+  const seconds = origin ? Math.max(0, (new Date(row.at) - new Date(origin)) / 1000) : 0;
+  let what = story.what;
+  if (many) what = row.action === "EVIDENCE_APPENDED" ? `Stored ${row.count} evidence records` : `${story.what} ×${row.count}`;
+  return h("li", { class: "trail-row", "data-tone": story.tone || null },
+    h("details", { open: state.expanded.has(key), ontoggle: (e) => keep(key, e.target.open) },
+      h("summary", {},
+        h("time", { class: "trail-offset", datetime: row.at, title: clockMs(row.at), text: trailOffset(seconds) }),
+        h("span", { class: "trail-what", text: what }),
+        h("span", { class: "trail-who" }, h("b", { text: name }), role ? h("small", { text: role }) : null)),
+      h("div", { class: "trail-more" },
+        !many && story.note ? h("p", { class: "trail-note" }, story.note) : null,
+        rawDetails("Raw record", { seq: row.seq, at: row.at, actor: row.actor, action: row.action, detail: row.detail }, key))));
+}
+function trailGroup(i, rows, origin, incidentId) {
+  const stage = STAGES[i];
+  const span = (new Date(rows[rows.length - 1].at) - new Date(rows[0].at)) / 1000;
+  return h("section", { class: "trail-group", "aria-label": `Phase ${stage.no} ${stage.name}` },
+    h("h3", { class: "trail-head" }, h("span", { class: "phase-no", text: stage.no }), stage.name,
+      h("span", { class: "aside", text: `${rows.length} record${rows.length === 1 ? "" : "s"} · ${elapsed(span)}` })),
+    h("ol", { class: "trail-rows" }, groupAudit(rows).map((row) => trailRow(row, origin, incidentId))));
+}
+function recordsView(rows, incidentId, origin) {
   return h("section", { class: "output" },
-    outputHead("Records in this phase", `${rows.length} hash-chained audit record${rows.length === 1 ? "" : "s"} · select one to see it in full`),
-    h("ol", { class: "records" }, rows.map((row) => {
-      const [base, tone, extra] = auditLine(row);
-      const [name] = AGENTS[row.actor] || [row.actor];
-      const key = `rec:${incidentId}:${row.seq}`;
-      return h("li", { "data-tone": tone },
-        h("details", { open: state.expanded.has(key), ontoggle: (e) => keep(key, e.target.open) },
-          h("summary", {},
-            h("time", { datetime: row.at, text: clockMs(row.at) }),
-            h("span", { class: "who", title: row.actor, text: name }),
-            h("span", { class: "what" }, base, extra ? h("small", { text: ` ${extra}` }) : null)),
-          h("pre", { class: "raw", text: JSON.stringify({ seq: row.seq, at: row.at, actor: row.actor, action: row.action, detail: row.detail }, null, 2) })));
-    })));
+    outputHead("Records in this phase", `${rows.length} hash-chained record${rows.length === 1 ? "" : "s"} · open one to read it`),
+    h("ol", { class: "trail-rows" }, groupAudit(rows).map((row) => trailRow(row, origin, incidentId))));
 }
 function pendingStrip(approval) {
   return h("div", { class: "pending-strip" },
@@ -1177,21 +1238,24 @@ function groupAudit(audit) {
 }
 function auditBlock(detail) {
   const audit = detail.audit || [];
-  const rows = groupAudit(audit);
-  return h("section", { class: "sheet-block" },
+  const origin = audit[0]?.at || null;
+  const agents = new Set(audit.map((r) => r.actor)).size;
+  /* A human decision is the answer (approved, rejected or expired), not the request for one. */
+  const humans = audit.filter((r) => ["APPROVAL_APPROVED", "APPROVAL_REJECTED", "APPROVAL_EXPIRED"].includes(r.action)).length;
+  const span = origin ? (new Date(audit[audit.length - 1].at) - new Date(origin)) / 1000 : 0;
+  const model = phaseModel(audit);
+  return h("section", { class: "sheet-block audit" },
     h("h2", {}, "Audit trail",
       h("span", { class: "chain", "data-ok": String(detail.audit_chain_valid) },
-        icon("chain"), detail.audit_chain_valid ? `Hash chain verified · ${audit.length} records` : "Hash chain broken: records were altered")),
-    h("ol", { class: "timeline" }, rows.map((row) => {
-      const [base, tone, single] = auditLine(row);
-      const text = row.count > 1 ? `${base} ×${row.count}` : base;
-      const extra = row.count > 1 ? null : single;
-      const [name] = AGENTS[row.actor] || [row.actor];
-      return h("li", { "data-tone": tone },
-        h("time", { datetime: row.at, text: clock(row.at) }),
-        h("span", { class: "who", title: row.actor, text: name }),
-        h("span", { class: "what" }, text, extra ? h("small", { text: ` ${extra}` }) : null));
-    })));
+        icon("chain"), detail.audit_chain_valid ? "Hash chain verified" : "Hash chain broken: records were altered")),
+    h("p", { class: "audit-summary" },
+      `${audit.length} records · ${agents} actors · ${elapsed(span)} end to end · ${humans ? `${humans} human decision${humans === 1 ? "" : "s"}` : "no human decision"}`),
+    h("ul", { class: "audit-legend", "aria-label": "How to read the markers" },
+      h("li", {}, "System step"),
+      h("li", { "data-tone": "ok" }, "Verified"),
+      h("li", { "data-tone": "signal" }, "Human decision or failure"),
+      h("li", { "data-tone": "quiet" }, "Bookkeeping")),
+    h("div", { class: "trail" }, model.rows.map((rows, i) => (rows.length ? trailGroup(i, rows, origin, detail.context.incident_id) : null))));
 }
 
 /* ---- scenarios --------------------------------------------------------------------------- */
