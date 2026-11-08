@@ -1,0 +1,241 @@
+{
+  "rows": [
+    {
+      "family": "leak",
+      "variant": "8 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "leak",
+      "variant": "9 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "leak",
+      "variant": "10 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "leak",
+      "variant": "11 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "260 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "WRONG change executed, reported RESOLVED (false recovery)"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "300 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "WRONG change executed, reported RESOLVED (false recovery)"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "340 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "380 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "680 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 0,
+      "proposed": null,
+      "approvals_asked": 0,
+      "executed": [],
+      "stage": null,
+      "outcome": "missed (no incident)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "720 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "760 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "800 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "traffic",
+      "variant": "600 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "traffic",
+      "variant": "640 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "traffic",
+      "variant": "680 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "traffic",
+      "variant": "720 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "control",
+      "variant": "steady traffic, 9 min",
+      "truth": null,
+      "opened": 0,
+      "proposed": null,
+      "approvals_asked": 0,
+      "executed": [],
+      "stage": null,
+      "outcome": "quiet (correct)"
+    },
+    {
+      "family": "control",
+      "variant": "healthy deploy, 9 min",
+      "truth": null,
+      "opened": 0,
+      "proposed": null,
+      "approvals_asked": 0,
+      "executed": [],
+      "stage": null,
+      "outcome": "quiet (correct)"
+    }
+  ],
+  "summary": {
+    "leak": {
+      "correct": 4
+    },
+    "cpu_burn": {
+      "WRONG change executed, reported RESOLVED (false recovery)": 2,
+      "wrong action shown to a human (nothing executed)": 2
+    },
+    "load_memory": {
+      "missed (no incident)": 1,
+      "wrong action shown to a human (nothing executed)": 3
+    },
+    "traffic": {
+      "correct": 4
+    },
+    "control": {
+      "quiet (correct)": 2
+    }
+  }
+}

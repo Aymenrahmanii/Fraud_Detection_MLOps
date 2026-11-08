@@ -178,6 +178,9 @@ class SimulatedCluster:
         if "memory_leak" in dep.release.faults:
             leaked_mib = 12.1 * self._minutes_on_release(dep)
             return min(99.0, 60.0 + 100.0 * leaked_mib / dep.memory_limit_mib)
+        if "load_memory" in dep.release.faults:
+            # Memory that follows traffic (caches, buffers) and does not grow over time: not a leak.
+            return 61.0 + min(35.0, 0.06 * max(0.0, dep.rps - 300.0))
         return 61.0
 
     def signals(self, service_id: str, namespace: str | None = None) -> dict[str, float]:
@@ -188,6 +191,9 @@ class SimulatedCluster:
                 else next(d for d in self.deployments() if d.service_id == service_id)
             )
             cpu = min(99.0, 60.0 * dep.rps / (dep.replicas * CAPACITY_RPS_PER_REPLICA))
+            if "cpu_burn" in dep.release.faults:
+                # A build that burns CPU whatever the traffic is: a release problem, not a capacity one.
+                cpu = min(99.0, cpu + 60.0)
             memory = self._memory_pct(dep)
             leaking = "memory_leak" in dep.release.faults
             latency = 205.0 * (1 + max(0.0, (cpu - 70.0) / 10.0) ** 2 * 0.5)
