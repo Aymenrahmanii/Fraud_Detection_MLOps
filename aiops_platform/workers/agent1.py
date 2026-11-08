@@ -321,16 +321,49 @@ class SimWatcher:
         return opened
 
 
+CPU_RECOVERY_LIMIT = SIM_RULES["cpu_pressure"][1]
+CPU_COST_PER_REQUEST_BUDGET = 1.0  # hand-picked: twice the healthy simulated cost of 0.5
+
+
+class ReleaseHealthVerifier:
+    """Agent 1's recovery verifier, plus the check its symptom rules miss: CPU is back under the limit
+    the detector uses. A release that burns CPU passes the error, latency and memory checks, so without
+    this a scale-up that hides the bug is reported as recovered. Agent 1's own verifier is unchanged."""
+
+    def __init__(self, inner: Verifier, cluster) -> None:
+        self._inner = inner
+        self._cluster = cluster
+
+    async def verify(self, action_id: str, context):
+        result = await self._inner.verify(action_id, context)
+        signals = self._cluster.signals(context.service_id, getattr(context, "namespace", None))
+        # Average CPU alone can hide a burn: spreading it over more pods lowers the average. CPU per request
+        # (CPU points times pods, per request per second) does not: a healthy service costs about 0.5 here,
+        # and CPU_COST_PER_REQUEST_BUDGET allows twice that.
+        cost = signals["cpu_avg_pct"] * signals["replicas"] / signals["rps"] if signals["rps"] > 0 else 0.0
+        checks = {
+            "cpu_avg_pct": "PASS" if signals["cpu_avg_pct"] <= CPU_RECOVERY_LIMIT else "FAIL",
+            "cpu_cost_per_request": "PASS" if cost <= CPU_COST_PER_REQUEST_BUDGET else "FAIL",
+        }
+        status = result.status
+        if result.status == "RECOVERED" and "FAIL" in checks.values():
+            status = "NOT_RECOVERED"
+        return result.model_copy(update={"status": status, "checks": {**result.checks, **checks}})
+
+
 def build_sim_monitoring(cluster, *, window_seconds: float = 60, sample_seconds: float = 30, sleep=None):
     """Agent 1 wired on the simulated cluster: (agent, publisher, detector, verifier)."""
 
     async def instant(_seconds: float) -> None:
         await asyncio.sleep(0)
 
-    verifier = Verifier(
-        SimSignalReader(cluster),
-        fast_recovery_policy(window_seconds, sample_seconds),
-        sleep=sleep or instant,
+    verifier = ReleaseHealthVerifier(
+        Verifier(
+            SimSignalReader(cluster),
+            fast_recovery_policy(window_seconds, sample_seconds),
+            sleep=sleep or instant,
+        ),
+        cluster,
     )
     detector = SimAnomalyDetector(cluster)
     publisher = CapturingPublisher()

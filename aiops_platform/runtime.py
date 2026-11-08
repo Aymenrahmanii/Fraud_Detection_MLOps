@@ -23,6 +23,7 @@ from aiops_platform.hitl.keys import SigningKey, registry_for
 from aiops_platform.hitl.service import HitlService
 from aiops_platform.observability.metrics import PlatformMetrics
 from aiops_platform.orchestrator.service import HitlClient, OrchestratorService
+from aiops_platform.policy import PolicyGate
 from aiops_platform.sim.cluster import SimInspector, SimMutationAdapter, SimulatedCluster
 from aiops_platform.workers.agent1 import Agent1VerdictService, MonitoringWorker, SimWatcher, build_sim_monitoring
 from aiops_platform.workers.agent2 import DiagnosisWorker, sim_toolbox
@@ -55,8 +56,11 @@ class Platform:
         metrics: PlatformMetrics | None = None,
         bus: InMemoryBus | None = None,
         agent_context: Callable[[ContextService, AgentId], object] | None = None,
+        policy: PolicyGate | None = None,
+        agent2_investigator=None,
     ) -> "Platform":
-        """`bus` and `agent_context` let experiments inject faults (duplicates, outages)."""
+        """`bus` and `agent_context` let experiments inject faults (duplicates, outages);
+        `policy` lets experiments run the loop with other parameters."""
         workdir.mkdir(parents=True, exist_ok=True)
         bus = bus or InMemoryBus()
         metrics = metrics or PlatformMetrics()
@@ -69,7 +73,7 @@ class Platform:
         agent1_key = SigningKey.load_or_create(workdir / "keys/agent1.pem", "agent1-key-1", "agent1-monitoring")
         hitl = HitlService(context=context, signer=hitl_key)
         orchestrator = OrchestratorService(
-            bus=bus, context=OrchestratorContext(context), hitl=HitlClient(hitl), metrics=metrics
+            bus=bus, context=OrchestratorContext(context), hitl=HitlClient(hitl), metrics=metrics, policy=policy
         )
 
         agent, publisher, detector, verifier = build_sim_monitoring(cluster)
@@ -97,7 +101,9 @@ class Platform:
         m = {"metrics": metrics}
         workers = [
             MonitoringWorker(bus, ctx(AgentId.MONITORING), agent=agent, publisher=publisher, **m),
-            DiagnosisWorker(bus, ctx(AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster), **m),
+            DiagnosisWorker(
+                bus, ctx(AgentId.DIAGNOSIS), toolbox=sim_toolbox(cluster), investigator=agent2_investigator, **m
+            ),
             SecurityQualityWorker(bus, ctx(AgentId.SECURITY_QUALITY), **m),
             DeploymentWorker(
                 bus, ctx(AgentId.DEPLOYMENT_RECOVERY), executor=executor, plans=PlanStore(workdir / "plans"), **m

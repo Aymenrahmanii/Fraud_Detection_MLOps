@@ -1,0 +1,732 @@
+{
+  "meta": {
+    "name": "deterministic-v1",
+    "recorded_at": "2026-11-08 10:43 UTC",
+    "commit": "266bdd2",
+    "machine": "Windows 11, 16 logical CPUs",
+    "python": "3.12.2",
+    "wall_seconds": 459.6
+  },
+  "tests": "44 passed in 39.62s",
+  "scenarios": {
+    "production": {
+      "workflows": 4,
+      "incidents": 1,
+      "mtta_s_avg": 0.422,
+      "mttr_s_avg": 1.198,
+      "hitl_rate": 0.75,
+      "autonomous_resolution_rate": 0.0,
+      "action_success_rate": 1.0,
+      "false_action_rate": 0.0,
+      "policy_distribution": {
+        "APPROVAL_REQUIRED": 2
+      },
+      "message_reliability": 1.0,
+      "audit_chains_valid": true,
+      "per_workflow": [
+        {
+          "incident_id": "MLOPS-machine-failure-demo",
+          "kind": "MLOPS",
+          "status": "PROMOTION_APPROVED",
+          "hitl": true,
+          "mtta_s": null,
+          "mttr_s": null,
+          "approval_wait_s": 0.025,
+          "executed": 0,
+          "verified": 0,
+          "audit_chain_valid": true
+        },
+        {
+          "incident_id": "REL-payment-v2.8-b",
+          "kind": "RELEASE",
+          "status": "RESOLVED",
+          "hitl": true,
+          "mtta_s": 0.163,
+          "mttr_s": 0.905,
+          "approval_wait_s": 0.029,
+          "executed": 1,
+          "verified": 1,
+          "audit_chain_valid": true
+        },
+        {
+          "incident_id": "REL-payment-v2.8-a",
+          "kind": "RELEASE",
+          "status": "RELEASE_BLOCKED",
+          "hitl": false,
+          "mtta_s": null,
+          "mttr_s": null,
+          "approval_wait_s": null,
+          "executed": 0,
+          "verified": 0,
+          "audit_chain_valid": true
+        },
+        {
+          "incident_id": "INC-20261108104419-payment-service-c9c704",
+          "kind": "INCIDENT",
+          "status": "RESOLVED",
+          "hitl": true,
+          "mtta_s": 0.422,
+          "mttr_s": 1.198,
+          "approval_wait_s": 0.036,
+          "executed": 1,
+          "verified": 1,
+          "audit_chain_valid": true
+        }
+      ]
+    },
+    "staging": {
+      "workflows": 1,
+      "incidents": 1,
+      "mtta_s_avg": 0.349,
+      "mttr_s_avg": 1.007,
+      "hitl_rate": 0.0,
+      "autonomous_resolution_rate": 1.0,
+      "action_success_rate": 1.0,
+      "false_action_rate": 0.0,
+      "policy_distribution": {
+        "APPROVAL_REQUIRED": 1,
+        "AUTO": 1
+      },
+      "message_reliability": 1.0,
+      "audit_chains_valid": true,
+      "per_workflow": [
+        {
+          "incident_id": "INC-20261108104420-checkout-api-60c0a0",
+          "kind": "INCIDENT",
+          "status": "RESOLVED",
+          "hitl": false,
+          "mtta_s": 0.349,
+          "mttr_s": 1.007,
+          "approval_wait_s": null,
+          "executed": 1,
+          "verified": 1,
+          "audit_chain_valid": true
+        }
+      ]
+    }
+  },
+  "benchmarks": {
+    "clean-20": {
+      "resolved": 20,
+      "by_stage": {
+        "RESOLVED": 20
+      },
+      "root_cause_accuracy": 1.0,
+      "one_change_per_resolved_incident": true,
+      "audit_chains_valid": true,
+      "published_messages": 260,
+      "injected_duplicates": 0,
+      "duplicates_ignored": 0,
+      "injected_context_failures": 0,
+      "retries": 0,
+      "dead_letters": 0,
+      "message_reliability": 1.0,
+      "detect_to_decision_p50_s": 5.3446,
+      "detect_to_decision_p95_s": 8.4857,
+      "throughput_per_min": 64.81,
+      "wall_seconds": 18.516
+    },
+    "faults-20": {
+      "resolved": 20,
+      "by_stage": {
+        "RESOLVED": 20
+      },
+      "root_cause_accuracy": 1.0,
+      "one_change_per_resolved_incident": true,
+      "audit_chains_valid": true,
+      "published_messages": 375,
+      "injected_duplicates": 95,
+      "duplicates_ignored": 81.0,
+      "injected_context_failures": 20,
+      "retries": 20.0,
+      "dead_letters": 0,
+      "message_reliability": 1.0,
+      "detect_to_decision_p50_s": 5.4323,
+      "detect_to_decision_p95_s": 7.2391,
+      "throughput_per_min": 71.17,
+      "wall_seconds": 16.862
+    },
+    "clean-100": {
+      "resolved": 100,
+      "by_stage": {
+        "RESOLVED": 100
+      },
+      "root_cause_accuracy": 1.0,
+      "one_change_per_resolved_incident": true,
+      "audit_chains_valid": true,
+      "published_messages": 1300,
+      "injected_duplicates": 0,
+      "duplicates_ignored": 0,
+      "injected_context_failures": 0,
+      "retries": 0,
+      "dead_letters": 0,
+      "message_reliability": 1.0,
+      "detect_to_decision_p50_s": 22.5535,
+      "detect_to_decision_p95_s": 34.7402,
+      "throughput_per_min": 64.58,
+      "wall_seconds": 92.915
+    },
+    "faults-100-5pct": {
+      "resolved": 100,
+      "by_stage": {
+        "RESOLVED": 100
+      },
+      "root_cause_accuracy": 1.0,
+      "one_change_per_resolved_incident": true,
+      "audit_chains_valid": true,
+      "published_messages": 1873,
+      "injected_duplicates": 462,
+      "duplicates_ignored": 399.0,
+      "injected_context_failures": 110,
+      "retries": 110.0,
+      "dead_letters": 0,
+      "message_reliability": 1.0,
+      "detect_to_decision_p50_s": 23.5409,
+      "detect_to_decision_p95_s": 35.2439,
+      "throughput_per_min": 62.6,
+      "wall_seconds": 95.853
+    },
+    "faults-100-15pct": {
+      "resolved": 74,
+      "by_stage": {
+        "RESOLVED": 74,
+        "ESCALATED": 26
+      },
+      "root_cause_accuracy": 1.0,
+      "one_change_per_resolved_incident": true,
+      "audit_chains_valid": true,
+      "published_messages": 2048,
+      "injected_duplicates": 497,
+      "duplicates_ignored": 455.0,
+      "injected_context_failures": 484,
+      "retries": 458.0,
+      "dead_letters": 26,
+      "message_reliability": 0.9873,
+      "detect_to_decision_p50_s": 26.0753,
+      "detect_to_decision_p95_s": 44.6677,
+      "throughput_per_min": 48.81,
+      "wall_seconds": 90.974
+    }
+  },
+  "detection": {
+    "cpu_rps_incidents_opened": {
+      "450": 0,
+      "500": 0,
+      "550": 1,
+      "600": 1,
+      "640": 1
+    },
+    "leak_minutes_incidents_opened": {
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 1,
+      "8": 1,
+      "9": 1
+    }
+  },
+  "healthy_control": {
+    "minutes": 20,
+    "incidents_opened": 0
+  },
+  "sensitivity": {
+    "situations": 576,
+    "baseline_distribution": {
+      "staging": {
+        "AUTO": 3,
+        "APPROVAL_REQUIRED": 285,
+        "BLOCK": 0
+      },
+      "production": {
+        "AUTO": 0,
+        "APPROVAL_REQUIRED": 288,
+        "BLOCK": 0
+      }
+    },
+    "parameters": [
+      {
+        "parameter": "decision_weights.rca_confidence",
+        "change": "-10%",
+        "flipped": 3,
+        "flip_rate": 0.0052,
+        "auto_before": 3,
+        "auto_after": 0
+      },
+      {
+        "parameter": "decision_weights.rca_confidence",
+        "change": "+10%",
+        "flipped": 15,
+        "flip_rate": 0.026,
+        "auto_before": 3,
+        "auto_after": 18
+      },
+      {
+        "parameter": "decision_weights.evidence_strength",
+        "change": "-10%",
+        "flipped": 3,
+        "flip_rate": 0.0052,
+        "auto_before": 3,
+        "auto_after": 0
+      },
+      {
+        "parameter": "decision_weights.evidence_strength",
+        "change": "+10%",
+        "flipped": 12,
+        "flip_rate": 0.0208,
+        "auto_before": 3,
+        "auto_after": 15
+      },
+      {
+        "parameter": "decision_weights.historical_success",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "decision_weights.historical_success",
+        "change": "+10%",
+        "flipped": 3,
+        "flip_rate": 0.0052,
+        "auto_before": 3,
+        "auto_after": 6
+      },
+      {
+        "parameter": "decision_weights.agent_agreement",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "decision_weights.agent_agreement",
+        "change": "+10%",
+        "flipped": 6,
+        "flip_rate": 0.0104,
+        "auto_before": 3,
+        "auto_after": 9
+      },
+      {
+        "parameter": "risk_weights.environment_criticality",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.environment_criticality",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.blast_radius",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.blast_radius",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.irreversibility",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.irreversibility",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.data_impact",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.data_impact",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.uncertainty",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "risk_weights.uncertainty",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.auto_decision_score",
+        "change": "-10%",
+        "flipped": 57,
+        "flip_rate": 0.099,
+        "auto_before": 3,
+        "auto_after": 60
+      },
+      {
+        "parameter": "thresholds.auto_decision_score",
+        "change": "+10%",
+        "flipped": 3,
+        "flip_rate": 0.0052,
+        "auto_before": 3,
+        "auto_after": 0
+      },
+      {
+        "parameter": "thresholds.min_confidence",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.min_confidence",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.max_disagreement",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.max_disagreement",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.risk_levels.LOW",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.risk_levels.LOW",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.risk_levels.MEDIUM",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.risk_levels.MEDIUM",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.risk_levels.HIGH",
+        "change": "-10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      },
+      {
+        "parameter": "thresholds.risk_levels.HIGH",
+        "change": "+10%",
+        "flipped": 0,
+        "flip_rate": 0.0,
+        "auto_before": 3,
+        "auto_after": 3
+      }
+    ]
+  },
+  "sweep": {
+    "grid": {
+      "auto_decision_score": [
+        0.75,
+        0.8,
+        0.85,
+        0.9
+      ],
+      "min_confidence": [
+        0.5,
+        0.6,
+        0.7
+      ],
+      "cpu_rps": [
+        450,
+        640,
+        800
+      ],
+      "leak_minutes": [
+        6,
+        9,
+        12
+      ]
+    },
+    "rows": [
+      {
+        "auto_decision_score": 0.75,
+        "min_confidence": 0.5,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.75,
+        "min_confidence": 0.6,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.75,
+        "min_confidence": 0.7,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.8,
+        "min_confidence": 0.5,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.8,
+        "min_confidence": 0.6,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.8,
+        "min_confidence": 0.7,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.85,
+        "min_confidence": 0.5,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.85,
+        "min_confidence": 0.6,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.85,
+        "min_confidence": 0.7,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 2,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 0
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.9,
+        "min_confidence": 0.5,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.9,
+        "min_confidence": 0.6,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      },
+      {
+        "auto_decision_score": 0.9,
+        "min_confidence": 0.7,
+        "staging_cpu": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        },
+        "production_leak": {
+          "opened": 2,
+          "auto": 0,
+          "resolved": 2,
+          "unsafe": 0,
+          "asked": 2
+        }
+      }
+    ]
+  }
+}
