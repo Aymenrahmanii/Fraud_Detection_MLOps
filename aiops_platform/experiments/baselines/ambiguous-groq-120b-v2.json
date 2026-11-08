@@ -1,0 +1,977 @@
+{
+  "rules": [
+    {
+      "family": "leak",
+      "variant": "8 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "leak",
+      "variant": "9 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "leak",
+      "variant": "10 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "leak",
+      "variant": "11 min after deploy",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [
+        "ROLLBACK"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "260 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "WRONG change executed, reported RESOLVED (false recovery)"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "300 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "WRONG change executed, reported RESOLVED (false recovery)"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "340 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "cpu_burn",
+      "variant": "380 rps",
+      "truth": "ROLLBACK",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "680 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 0,
+      "proposed": null,
+      "approvals_asked": 0,
+      "executed": [],
+      "stage": null,
+      "outcome": "missed (no incident)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "720 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "760 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "load_memory",
+      "variant": "800 rps after deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "ROLLBACK",
+      "approvals_asked": 1,
+      "executed": [],
+      "stage": "ESCALATED",
+      "outcome": "wrong action shown to a human (nothing executed)"
+    },
+    {
+      "family": "traffic",
+      "variant": "600 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "traffic",
+      "variant": "640 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "traffic",
+      "variant": "680 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "traffic",
+      "variant": "720 rps, no deploy",
+      "truth": "SCALE_REPLICAS",
+      "opened": 1,
+      "proposed": "SCALE_REPLICAS",
+      "approvals_asked": 1,
+      "executed": [
+        "SCALE_REPLICAS"
+      ],
+      "stage": "RESOLVED",
+      "outcome": "correct"
+    },
+    {
+      "family": "control",
+      "variant": "steady traffic, 9 min",
+      "truth": null,
+      "opened": 0,
+      "proposed": null,
+      "approvals_asked": 0,
+      "executed": [],
+      "stage": null,
+      "outcome": "quiet (correct)"
+    },
+    {
+      "family": "control",
+      "variant": "healthy deploy, 9 min",
+      "truth": null,
+      "opened": 0,
+      "proposed": null,
+      "approvals_asked": 0,
+      "executed": [],
+      "stage": null,
+      "outcome": "quiet (correct)"
+    }
+  ],
+  "runs": {
+    "worst": [
+      {
+        "family": "leak",
+        "variant": "8 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory usage at 78.9% with a rising slope of 12.1\u202fMB/min only 8\u202fminutes after deployment and no pod restarts, matching a post\u2011deploy memory leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 1.534
+      },
+      {
+        "family": "leak",
+        "variant": "9 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory usage at 81% with a growth of 12.1\u202fMB/min only 9\u202fminutes after the v2.7 deployment, indicating a post\u2011deploy memory leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 1.105
+      },
+      {
+        "family": "leak",
+        "variant": "10 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show 83.6% memory use with a 12.1\u202fMB/min increase only 10\u202fminutes after deployment and no pod restarts, consistent with a post\u2011deploy memory leak.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 1.148
+      },
+      {
+        "family": "leak",
+        "variant": "11 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory usage at 86% with a growth slope of 12.1\u202fMB/min and the deployment occurred 11\u202fminutes ago, matching a post\u2011deploy memory leak pattern.",
+        "review_tool_calls": 3,
+        "review_model_calls": 4,
+        "review_latency_s": 1.883
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "260 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "WRONG change executed, reported RESOLVED (false recovery)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show CPU usage at 92.5% with high latency and error rate, indicating resource pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 1.243
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "300 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "WRONG change executed, reported RESOLVED (false recovery)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 97.5% (near saturation) with high latency and error rate, confirming resource pressure/CPU starvation.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 10.286
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "340 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 99% with high latency (p95 1067ms) and error_rate 0.03, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 10.021
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "380 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct at 99% indicating severe CPU pressure while memory and restarts are normal.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 3.664
+      },
+      {
+        "family": "load_memory",
+        "variant": "680 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 0,
+        "proposed": null,
+        "approvals_asked": 0,
+        "executed": [],
+        "stage": null,
+        "outcome": "missed (no incident)",
+        "review_status": "OFF",
+        "review_root_cause": null,
+        "review_agrees": null,
+        "review_reason": null,
+        "review_tool_calls": 0,
+        "review_model_calls": 0,
+        "review_latency_s": null
+      },
+      {
+        "family": "load_memory",
+        "variant": "720 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory at 86.2% of limit and rising at 0.2\u202fMB/min, indicating a post\u2011deploy memory leak.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 5.302
+      },
+      {
+        "family": "load_memory",
+        "variant": "760 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory at 88.6% of limit with a positive growth slope of 0.2\u202fMB/min only 9\u202fminutes after deployment, indicating a post\u2011deploy memory leak.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 11.616
+      },
+      {
+        "family": "load_memory",
+        "variant": "800 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": false,
+        "review_reason": "Current signals show CPU at 99% with high latency and error rate while memory is at 91% and rising only modestly (0.2\u202fMB/min), indicating resource pressure/CPU starvation rather than a clear memory leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 23.814
+      },
+      {
+        "family": "traffic",
+        "variant": "600 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 99% with high latency and error rate, and no pod restarts, indicating CPU pressure.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 17.143
+      },
+      {
+        "family": "traffic",
+        "variant": "640 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct at 99% indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 9.023
+      },
+      {
+        "family": "traffic",
+        "variant": "680 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct at 99% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 7.958
+      },
+      {
+        "family": "traffic",
+        "variant": "720 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 99% with high latency and error_rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 3.168
+      },
+      {
+        "family": "control",
+        "variant": "steady traffic, 9 min",
+        "truth": null,
+        "opened": 0,
+        "proposed": null,
+        "approvals_asked": 0,
+        "executed": [],
+        "stage": null,
+        "outcome": "quiet (correct)",
+        "review_status": "OFF",
+        "review_root_cause": null,
+        "review_agrees": null,
+        "review_reason": null,
+        "review_tool_calls": 0,
+        "review_model_calls": 0,
+        "review_latency_s": null
+      },
+      {
+        "family": "control",
+        "variant": "healthy deploy, 9 min",
+        "truth": null,
+        "opened": 0,
+        "proposed": null,
+        "approvals_asked": 0,
+        "executed": [],
+        "stage": null,
+        "outcome": "quiet (correct)",
+        "review_status": "OFF",
+        "review_root_cause": null,
+        "review_agrees": null,
+        "review_reason": null,
+        "review_tool_calls": 0,
+        "review_model_calls": 0,
+        "review_latency_s": null
+      }
+    ],
+    "informed": [
+      {
+        "family": "leak",
+        "variant": "8 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory usage at 78.9% with a rising slope of 12.1\u202fMB/min only 8\u202fminutes after deployment and no pod restarts, consistent with a post\u2011deploy memory leak.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 3.47
+      },
+      {
+        "family": "leak",
+        "variant": "9 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory usage at 81% with a growth of 12.1\u202fMB/min only 9\u202fminutes after the v2.7 deployment, indicating a post\u2011deploy memory leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 9.016
+      },
+      {
+        "family": "leak",
+        "variant": "10 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory usage at 83.6% with a rapid rise of 12.1\u202fMB/min only 10\u202fminutes after deployment, consistent with a post\u2011deploy memory leak.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 5.064
+      },
+      {
+        "family": "leak",
+        "variant": "11 min after deploy",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [
+          "ROLLBACK"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory at 86% of limit with a rapid 12.1\u202fMB/min increase only 11\u202fminutes after the v2.7 deployment and no pod restarts, consistent with a post\u2011deploy memory leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 11.916
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "260 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "WRONG change executed, reported RESOLVED (false recovery)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show CPU usage at 92.5% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 7.771
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "300 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "WRONG change executed, reported RESOLVED (false recovery)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show CPU usage at 97.5% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 2.71
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "340 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct at 99% with high latency and error rate, confirming CPU pressure.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 7.039
+      },
+      {
+        "family": "cpu_burn",
+        "variant": "380 rps",
+        "truth": "ROLLBACK",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct at 99% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 2.93
+      },
+      {
+        "family": "load_memory",
+        "variant": "680 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 0,
+        "proposed": null,
+        "approvals_asked": 0,
+        "executed": [],
+        "stage": null,
+        "outcome": "missed (no incident)",
+        "review_status": "OFF",
+        "review_root_cause": null,
+        "review_agrees": null,
+        "review_reason": null,
+        "review_tool_calls": 0,
+        "review_model_calls": 0,
+        "review_latency_s": null
+      },
+      {
+        "family": "load_memory",
+        "variant": "720 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory at 86% of limit with a positive growth slope of 0.2\u202fMB/min, indicating a post\u2011deploy memory leak.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 8.55
+      },
+      {
+        "family": "load_memory",
+        "variant": "760 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "ESCALATED",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "MEMORY_LEAK_POST_DEPLOY",
+        "review_agrees": true,
+        "review_reason": "Current signals show memory at 88.6% of limit with a rising slope (0.2\u202fMB/min) only 9\u202fminutes after the v2.7 deployment and no pod restarts, indicating a post\u2011deploy memory leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 19.724
+      },
+      {
+        "family": "load_memory",
+        "variant": "800 rps after deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "ROLLBACK",
+        "approvals_asked": 1,
+        "executed": [],
+        "stage": "WAITING_FOR_APPROVAL",
+        "outcome": "wrong action shown to a human (nothing executed)",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": false,
+        "review_reason": "Current signals show CPU at 99% avg and high latency/error rate, while memory usage is high but only rising 0.2\u202fMB/min, indicating resource pressure rather than a clear leak.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 15.403
+      },
+      {
+        "family": "traffic",
+        "variant": "600 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 99% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 3.784
+      },
+      {
+        "family": "traffic",
+        "variant": "640 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 99% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 3.66
+      },
+      {
+        "family": "traffic",
+        "variant": "680 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct 99% with high latency (p95 1067ms) and error_rate 0.03, indicating CPU pressure.",
+        "review_tool_calls": 2,
+        "review_model_calls": 3,
+        "review_latency_s": 10.57
+      },
+      {
+        "family": "traffic",
+        "variant": "720 rps, no deploy",
+        "truth": "SCALE_REPLICAS",
+        "opened": 1,
+        "proposed": "SCALE_REPLICAS",
+        "approvals_asked": 1,
+        "executed": [
+          "SCALE_REPLICAS"
+        ],
+        "stage": "RESOLVED",
+        "outcome": "correct",
+        "review_status": "OK",
+        "review_root_cause": "RESOURCE_PRESSURE_OR_CPU_STARVATION",
+        "review_agrees": true,
+        "review_reason": "Current signals show cpu_avg_pct at 99% with high latency and error rate, indicating CPU pressure.",
+        "review_tool_calls": 1,
+        "review_model_calls": 2,
+        "review_latency_s": 2.677
+      },
+      {
+        "family": "control",
+        "variant": "steady traffic, 9 min",
+        "truth": null,
+        "opened": 0,
+        "proposed": null,
+        "approvals_asked": 0,
+        "executed": [],
+        "stage": null,
+        "outcome": "quiet (correct)",
+        "review_status": "OFF",
+        "review_root_cause": null,
+        "review_agrees": null,
+        "review_reason": null,
+        "review_tool_calls": 0,
+        "review_model_calls": 0,
+        "review_latency_s": null
+      },
+      {
+        "family": "control",
+        "variant": "healthy deploy, 9 min",
+        "truth": null,
+        "opened": 0,
+        "proposed": null,
+        "approvals_asked": 0,
+        "executed": [],
+        "stage": null,
+        "outcome": "quiet (correct)",
+        "review_status": "OFF",
+        "review_root_cause": null,
+        "review_agrees": null,
+        "review_reason": null,
+        "review_tool_calls": 0,
+        "review_model_calls": 0,
+        "review_latency_s": null
+      }
+    ]
+  },
+  "model": "openai/gpt-oss-120b",
+  "summary": {
+    "rules": {
+      "leak": {
+        "correct": 4
+      },
+      "cpu_burn": {
+        "WRONG change executed, reported RESOLVED (false recovery)": 2,
+        "wrong action shown to a human (nothing executed)": 2
+      },
+      "load_memory": {
+        "missed (no incident)": 1,
+        "wrong action shown to a human (nothing executed)": 3
+      },
+      "traffic": {
+        "correct": 4
+      },
+      "control": {
+        "quiet (correct)": 2
+      }
+    },
+    "review-worst": {
+      "leak": {
+        "correct": 4
+      },
+      "cpu_burn": {
+        "WRONG change executed, reported RESOLVED (false recovery)": 2,
+        "wrong action shown to a human (nothing executed)": 2
+      },
+      "load_memory": {
+        "missed (no incident)": 1,
+        "wrong action shown to a human (nothing executed)": 3
+      },
+      "traffic": {
+        "correct": 4
+      },
+      "control": {
+        "quiet (correct)": 2
+      }
+    },
+    "review-informed": {
+      "leak": {
+        "correct": 4
+      },
+      "cpu_burn": {
+        "WRONG change executed, reported RESOLVED (false recovery)": 2,
+        "wrong action shown to a human (nothing executed)": 2
+      },
+      "load_memory": {
+        "missed (no incident)": 1,
+        "wrong action shown to a human (nothing executed)": 3
+      },
+      "traffic": {
+        "correct": 4
+      },
+      "control": {
+        "quiet (correct)": 2
+      }
+    }
+  },
+  "recorded": "2026-11-08 12:38"
+}

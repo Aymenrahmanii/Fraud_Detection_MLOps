@@ -23,11 +23,33 @@ INSUFFICIENT = "INSUFFICIENT_EVIDENCE"
 
 SYSTEM = (
     "You review a root-cause diagnosis made by deterministic rules. You are read-only: you cannot change "
-    "anything, and you cannot inspect any service other than the one under review. Use the tools to check "
-    "the leading hypothesis. Then reply with JSON only: "
-    '{"root_cause": "<one of the candidate codes, or INSUFFICIENT_EVIDENCE>", '
-    '"reason": "<one sentence citing what the tools showed>"}. Never invent a code.'
+    "anything, and you cannot inspect any service other than the one under review. Use the evidence tools to "
+    "check the leading hypothesis. Then give your verdict by calling submit_verdict, with the root cause "
+    "(one of the candidate codes, or INSUFFICIENT_EVIDENCE) and one sentence citing what the tools showed. "
+    "Never invent a code."
 )
+VERDICT_TOOL = "submit_verdict"
+
+
+def verdict_declaration(rules: "RulesView") -> dict[str, Any]:
+    """The tool the model answers through. Its root cause is an enum of the rules' candidates, so a
+    model cannot invent one; the answer is then a structured call rather than free text."""
+    return {
+        "name": VERDICT_TOOL,
+        "description": "Submit your verdict on the leading hypothesis. Call it once, after checking the tools.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "root_cause": {
+                    "type": "STRING",
+                    "enum": [*rules.candidates, INSUFFICIENT],
+                    "description": "The candidate code the tools support, or INSUFFICIENT_EVIDENCE.",
+                },
+                "reason": {"type": "STRING", "description": "One sentence citing what the tools showed."},
+            },
+            "required": ["root_cause", "reason"],
+        },
+    }
 
 
 @dataclass(frozen=True)
@@ -62,17 +84,11 @@ def _prompt(rules: RulesView) -> str:
         f"Candidates: {', '.join(rules.candidates) or 'none'}. "
         f"Probabilities: {probabilities}. "
         f"Signals at detection: {json.dumps(rules.signals, sort_keys=True, default=str)}. "
-        "Check the leading hypothesis with the tools, then answer in the JSON format."
+        "Check the leading hypothesis with the evidence tools, then submit your verdict."
     )
 
 
-def _judge(text: str | None, rules: RulesView, inv: Investigation) -> None:
-    match = re.search(r"\{.*\}", text or "", re.DOTALL)
-    try:
-        data = json.loads(match.group(0)) if match else None
-    except json.JSONDecodeError:
-        data = None
-    root = data.get("root_cause") if isinstance(data, dict) else None
+def _accept(root: Any, reason: Any, rules: RulesView, inv: Investigation) -> None:
     allowed = set(rules.candidates) | {INSUFFICIENT}
     if not isinstance(root, str) or root not in allowed:
         inv.status = "INVALID"
@@ -80,8 +96,21 @@ def _judge(text: str | None, rules: RulesView, inv: Investigation) -> None:
         return
     inv.status = "OK"
     inv.llm_root_cause = root
-    inv.reason = str(data.get("reason", ""))[:500]
+    inv.reason = str(reason or "")[:500]
     inv.agrees = root == rules.primary
+
+
+def _judge(text: str | None, rules: RulesView, inv: Investigation) -> None:
+    """A plain-text answer, for a model that replies in JSON instead of calling the verdict tool."""
+    match = re.search(r"\{.*\}", text or "", re.DOTALL)
+    try:
+        data = json.loads(match.group(0)) if match else None
+    except json.JSONDecodeError:
+        data = None
+    if not isinstance(data, dict):
+        _accept(None, None, rules, inv)
+        return
+    _accept(data.get("root_cause"), data.get("reason"), rules, inv)
 
 
 class Investigator:
@@ -93,7 +122,7 @@ class Investigator:
         *,
         max_tool_calls: int = 3,
         max_model_calls: int = 4,
-        deadline_s: float = 60.0,
+        deadline_s: float = 120.0,
     ) -> None:
         self._client = client
         self._tools = tools
@@ -107,6 +136,7 @@ class Investigator:
         started = time.perf_counter()
         deadline = started + self._deadline_s
         contents: list[dict[str, Any]] = [{"role": "user", "parts": [{"text": _prompt(rules)}]}]
+        declarations = [*self._declarations, verdict_declaration(rules)]
         try:
             while True:
                 if inv.model_calls >= self._max_model_calls:
@@ -118,10 +148,14 @@ class Investigator:
                     break
                 inv.model_calls += 1
                 reply = await asyncio.wait_for(
-                    self._client.generate(system=SYSTEM, contents=contents, tools=self._declarations),
+                    self._client.generate(system=SYSTEM, contents=contents, tools=declarations),
                     timeout=remaining,
                 )
                 contents.append(reply.raw)
+                verdict_call = next((call for call in reply.tool_calls if call.name == VERDICT_TOOL), None)
+                if verdict_call is not None:
+                    _accept(verdict_call.args.get("root_cause"), verdict_call.args.get("reason"), rules, inv)
+                    break
                 if reply.tool_calls:
                     responses = [self._run_tool(call, service_id, namespace, inv) for call in reply.tool_calls]
                     contents.append({"role": "user", "parts": responses})
@@ -147,7 +181,10 @@ class Investigator:
             except Exception as exc:  # a failing tool is information for the model, not a crash
                 result = {"error": f"tool failed: {type(exc).__name__}"}
             inv.tool_calls.append({"name": call.name, "model_args": call.args, "result": result})
-        return {"functionResponse": {"name": call.name, "response": {"result": result}}}
+        response: dict[str, Any] = {"name": call.name, "response": {"result": result}}
+        if call.id is not None:
+            response["id"] = call.id  # providers that number their calls need the result to carry the number
+        return {"functionResponse": response}
 
 
 def apply_review(payload: dict[str, Any], inv: Investigation) -> dict[str, Any]:
