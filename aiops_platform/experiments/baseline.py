@@ -3,9 +3,12 @@
     python -m aiops_platform.experiments.baseline --name deterministic-v1
 
 Writes `baselines/<name>.json` (raw results) and `baselines/<name>.md` (the report).
-Run it before a change you want to compare against, and again after. The
-simulated cluster is deterministic for a given seed, so the reliability and
-scenario numbers reproduce; latencies depend on the machine and are recorded
+Run it before a change you want to compare against, and again after.
+
+Scenario, detection and sweep numbers are deterministic. The benchmark's
+concurrent message handling is scheduled by the event loop, so its counts vary
+a little from run to run (the 15%-fault row has moved between 70 and 74
+resolved with the same code). Latencies depend on the machine and are recorded
 with it.
 """
 
